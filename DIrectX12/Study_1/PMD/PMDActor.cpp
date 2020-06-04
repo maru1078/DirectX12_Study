@@ -369,10 +369,9 @@ HRESULT PMDActor::LoadPMDFile(const char * path)
 	m_vbView.StrideInBytes = pmdvertex_size; // 1頂点当たりのバイト数（今回はXMFLOAT3を入れても動くはず）
 
 	// インデックス関係
-	unsigned int indicesNum;
-	fread(&indicesNum, sizeof(indicesNum), 1, fp);
+	fread(&m_indicesNum, sizeof(m_indicesNum), 1, fp);
 
-	std::vector<unsigned short> indices(indicesNum);
+	std::vector<unsigned short> indices(m_indicesNum);
 	fread(indices.data(), indices.size() * sizeof(indices[0]), 1, fp);
 
 	result = m_dx12->Device()->CreateCommittedResource(
@@ -1295,7 +1294,7 @@ void PMDActor::Update()
 	MotionUpdate();
 }
 
-void PMDActor::Draw()
+void PMDActor::Draw(bool isShadow)
 {
 	m_dx12->CommandList()->IASetVertexBuffers(0, 1, &m_vbView);
 	m_dx12->CommandList()->IASetIndexBuffer(&m_ibView);
@@ -1316,15 +1315,22 @@ void PMDActor::Draw()
 	auto cbvsrvIncSize =
 		m_dx12->Device()->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV) * 5;
 
-	for (auto& m : m_materials)
+	if (isShadow)
 	{
-		m_dx12->CommandList()->SetGraphicsRootDescriptorTable(2, materialH);
+		m_dx12->CommandList()->DrawIndexedInstanced(m_indicesNum, 1, 0, 0, 0);
+	}
+	else
+	{
+		for (auto& m : m_materials)
+		{
+			m_dx12->CommandList()->SetGraphicsRootDescriptorTable(2, materialH);
 
-		m_dx12->CommandList()->DrawIndexedInstanced(m.indicesNum, 2, idxOffset, 0, 0);
+			m_dx12->CommandList()->DrawIndexedInstanced(m.indicesNum, 2, idxOffset, 0, 0);
 
-		// ヒープポインターとインデックスを次に進める
-		materialH.ptr += cbvsrvIncSize;
-		idxOffset += m.indicesNum;
+			// ヒープポインターとインデックスを次に進める
+			materialH.ptr += cbvsrvIncSize;
+			idxOffset += m.indicesNum;
+		}
 	}
 }
 

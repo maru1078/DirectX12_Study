@@ -33,11 +33,28 @@ float4 BasicPS(Output input) : SV_TARGET
 
 	// テクスチャカラー
 	float4 texColor = tex.Sample(smp, input.uv);
+	 //float brightness = dot(-light, input.normal);
 
+	float3 posFromLightVP = input.tpos.xyz / input.tpos.w;
+	float2 shadowUV = (posFromLightVP + float2(1, -1)) * float2(0.5, -0.5);
+	float depthFromLight = lightDepthTex.Sample(smp, shadowUV);
+	float shadowWeight = 1.0f;
 
-	 float brightness = dot(-light, input.normal);
+	//if (depthFromLight < posFromLightVP.z)
+	//{
+	//	shadowWeight = 0.5f;
+	//}
 
+	// 暗くなってるから0になってる？
+	if (depthFromLight == 0)
+	{
+		shadowWeight = 0.5f;
+	}
 
+	// 「輝度にこのshadowWeightを乗算して」って書いてあるけど・・・？
+	toonDif *= shadowWeight;
+
+	// いつの間にかサンプルと違くなってる・・・(´;ω;｀)
 	return max(saturate(
 		toonDif // 輝度（トゥーン）
 		* diffuse // ディフューズ色

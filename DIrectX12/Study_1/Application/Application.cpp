@@ -133,9 +133,14 @@ void Application::Run()
 		{
 			break;
 		}
+		
+		m_pmdRenderer->Update();
+
+		m_pmdRenderer->BeforeDrawFromLight();
+		m_dx12->PreDrawShadow();
+		m_pmdRenderer->DrawFromLight();
 
 		m_dx12->PreDrawToPera1();
-		m_pmdRenderer->Update();
 		m_pmdRenderer->BeforeDraw();
 		m_dx12->SetCameraInfoToConstBuff(); // Œ³‚Í‚±‚±‚¾‚Á‚½
 		m_pmdRenderer->Draw();

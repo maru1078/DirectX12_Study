@@ -143,6 +143,8 @@ private:
 
 	float m_angle; // テスト用Y軸回転
 
+	unsigned int m_indicesNum;
+
 
 private:
 
@@ -186,7 +188,7 @@ public:
 	HRESULT LoadVMDFile(const char* path);
 
 	void Update();
-	void Draw();
+	void Draw(bool isShadow = false);
 	void PlayAnimation();
 	void SetPos(float x, float y, float z);
 };

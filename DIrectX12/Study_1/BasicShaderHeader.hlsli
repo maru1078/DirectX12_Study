@@ -8,12 +8,16 @@ struct Output
 	float2 uv    : TEXCOORD; // uv値
 	float3 ray : VECTOR; // ベクトル
 	uint instNo : SV_InstanceID;
+	float4 tpos : TPOS;
 };
 
 Texture2D<float4> tex : register(t0); // 0番スロットに設定されたテクスチャ
 Texture2D<float4> sph : register(t1); // 1番スロットに設定されたテクスチャ
 Texture2D<float4> spa : register(t2); // 2番スロットに設定されたテクスチャ
 Texture2D<float4> toon : register(t3); // 3番スロットに設定されたテクスチャ（トゥーン）
+
+// シャドウマップ用ライト深度テクスチャ
+Texture2D<float> lightDepthTex : register(t4);
 
 // 深度検証用
 //Texture2D<float> depthTex : register(t2);

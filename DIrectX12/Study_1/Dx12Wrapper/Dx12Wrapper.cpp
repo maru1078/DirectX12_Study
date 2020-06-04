@@ -10,6 +10,8 @@
 #pragma comment(lib,"dxgi.lib")
 #pragma comment(lib,"d3dcompiler.lib")
 
+constexpr uint32_t shadow_difinition = 1024;
+
 HRESULT Dx12Wrapper::CreateFinalRenderTarget()
 {
 	DXGI_SWAP_CHAIN_DESC1 desc{};
@@ -99,9 +101,19 @@ HRESULT Dx12Wrapper::CreateDepthStencilView()
 		return result;
 	}
 
+	depthResDesc.Width = shadow_difinition;
+	depthResDesc.Height = shadow_difinition;
+	result = m_device->CreateCommittedResource(
+		&depthHeapProp,
+		D3D12_HEAP_FLAG_NONE,
+		&depthResDesc,
+		D3D12_RESOURCE_STATE_DEPTH_WRITE,
+		&depthClearValue,
+		IID_PPV_ARGS(m_lightDepthBuffer.ReleaseAndGetAddressOf()));
+
 	// 深度のためのディスクリプタヒープを作る
 	D3D12_DESCRIPTOR_HEAP_DESC dsvHeapDesc = {}; // 深度に使うことがわかればよい
-	dsvHeapDesc.NumDescriptors = 1; // 深度ビューは1つ
+	dsvHeapDesc.NumDescriptors = 2; // 深度ビューは1つ
 	dsvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_DSV; // デプスステンシルビューとして使う
 	dsvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
 
@@ -116,11 +128,18 @@ HRESULT Dx12Wrapper::CreateDepthStencilView()
 	dsvDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D; // 2Dテクスチャ
 	dsvDesc.Flags = D3D12_DSV_FLAG_NONE; // フラグは特になし
 
+	auto handle = m_dsvHeap->GetCPUDescriptorHandleForHeapStart();
+
 	m_device->CreateDepthStencilView(
 		m_depthBuffer.Get(),
 		&dsvDesc,
-		m_dsvHeap->GetCPUDescriptorHandleForHeapStart()
-	);
+		handle);
+
+	handle.ptr += m_device->GetDescriptorHandleIncrementSize(
+		D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
+
+	m_device->CreateDepthStencilView(
+		m_lightDepthBuffer.Get(), &dsvDesc, handle);
 
 	return result;
 }
@@ -839,7 +858,7 @@ bool Dx12Wrapper::CreateDepthSRV()
 	D3D12_DESCRIPTOR_HEAP_DESC heapDesc{};
 	heapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
 	heapDesc.NodeMask = 0;
-	heapDesc.NumDescriptors = 1;
+	heapDesc.NumDescriptors = 2; // 2に拡張
 	heapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
 	
 	auto result = m_device->CreateDescriptorHeap(
@@ -854,8 +873,16 @@ bool Dx12Wrapper::CreateDepthSRV()
 
 	auto handle = m_depthSRVHeap->GetCPUDescriptorHandleForHeapStart();
 
+	// 通常デプス->テクスチャ用
 	m_device->CreateShaderResourceView(
 		m_depthBuffer.Get(), &resDesc, handle);
+
+	// ライトデプス->テクスチャ用
+	handle.ptr += m_device->GetDescriptorHandleIncrementSize(
+		D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+
+	m_device->CreateShaderResourceView(
+		m_lightDepthBuffer.Get(), &resDesc, handle);
 
 	return true;
 }
@@ -939,6 +966,14 @@ void Dx12Wrapper::Update()
 {
 }
 
+void Dx12Wrapper::PreDrawShadow()
+{
+	auto handle = m_dsvHeap->GetCPUDescriptorHandleForHeapStart();
+	handle.ptr += m_device->GetDescriptorHandleIncrementSize(
+		D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
+	m_cmdList->OMSetRenderTargets(0, nullptr, false, &handle);
+}
+
 void Dx12Wrapper::BeginDraw()
 {
 	auto bbIdx = m_swapChain->GetCurrentBackBufferIndex();
@@ -1016,6 +1051,15 @@ void Dx12Wrapper::SetCameraInfoToConstBuff()
 
 	// シザー矩形をセット
 	m_cmdList->RSSetScissorRects(1, m_scissorRect.get());
+
+	//m_cmdList->SetDescriptorHeaps(1, m_depthSRVHeap.GetAddressOf());
+	//auto handle = m_depthSRVHeap->GetGPUDescriptorHandleForHeapStart();
+
+	//// ライトからの深度を使用するために2つ目のビューを使う
+	//handle.ptr += m_device->GetDescriptorHandleIncrementSize(
+	//	D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+
+	//m_cmdList->SetGraphicsRootDescriptorTable(3, handle);
 }
 
 void Dx12Wrapper::SetCameraSetting()
@@ -1139,6 +1183,16 @@ void Dx12Wrapper::Draw()
 	m_cmdList->SetDescriptorHeaps(1, m_depthSRVHeap.GetAddressOf());
 	m_cmdList->SetGraphicsRootDescriptorTable(3, 
 		m_depthSRVHeap->GetGPUDescriptorHandleForHeapStart());
+
+	// 通常描画前ってここか？
+	m_cmdList->SetDescriptorHeaps(1, m_depthSRVHeap.GetAddressOf());
+	handle = m_depthSRVHeap->GetGPUDescriptorHandleForHeapStart();
+
+	// ライトからの深度を使用するために2つ目のビューを使う
+	handle.ptr += m_device->GetDescriptorHandleIncrementSize(
+		D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+
+	m_cmdList->SetGraphicsRootDescriptorTable(3, handle);
 
 	m_cmdList->SetPipelineState(m_peraPipeline.Get());
 	m_cmdList->IASetPrimitiveTopology(D3D10_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);

@@ -121,21 +121,44 @@ HRESULT PMDRenderer::CreateGraphicsPipelineForPMD()
 		return result;
 	}
 
+	result = D3DCompileFromFile(
+		L"BasicVertexShader.hlsl",
+		nullptr,
+		D3D_COMPILE_STANDARD_FILE_INCLUDE,
+		"ShadowVS",
+		"vs_5_0",
+		0,
+		0,
+		&vsBlob,
+		&errorBlob);
+
+	gpipeline.VS = CD3DX12_SHADER_BYTECODE(vsBlob.Get()); // 頂点シェーダー設定
+	gpipeline.PS.BytecodeLength = 0;                      // ピクセルシェーダー必要なし
+	gpipeline.PS.pShaderBytecode = nullptr;               // ピクセルシェーダー必要なし
+	gpipeline.NumRenderTargets = 0;                       // レンダーターゲット必要なし
+	gpipeline.RTVFormats[0] = DXGI_FORMAT_UNKNOWN;        // レンダーターゲット必要なし
+
+	result = m_dx12->Device()->CreateGraphicsPipelineState(
+		&gpipeline,
+		IID_PPV_ARGS(m_plsShadow.ReleaseAndGetAddressOf()));
+
 	return result;
 }
 
 HRESULT PMDRenderer::CreateRootSignature()
 {
-	CD3DX12_DESCRIPTOR_RANGE descTblRange[4]{};
+	CD3DX12_DESCRIPTOR_RANGE descTblRange[5]{};
 	descTblRange[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 0); // 定数[b0]（座標変換用）
 	descTblRange[1].Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 1); // 定数[b1]（ワールド）
 	descTblRange[2].Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 2); // 定数[b2]（マテリアル用）
 	descTblRange[3].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 4, 0); // テクスチャ4つ
+	descTblRange[4].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 4);
 
-	CD3DX12_ROOT_PARAMETER rootParam[3] = {};
+	CD3DX12_ROOT_PARAMETER rootParam[4] = {};
 	rootParam[0].InitAsDescriptorTable(1, &descTblRange[0]); // 座標変換
 	rootParam[1].InitAsDescriptorTable(1, &descTblRange[1]); // ワールド
 	rootParam[2].InitAsDescriptorTable(2, &descTblRange[2]); // マテリアル周り
+	rootParam[3].InitAsDescriptorTable(1, &descTblRange[4]);
 
 	CD3DX12_STATIC_SAMPLER_DESC samplerDesc[2]{};
 	samplerDesc[0].Init(0);
@@ -147,7 +170,7 @@ HRESULT PMDRenderer::CreateRootSignature()
 
 	CD3DX12_ROOT_SIGNATURE_DESC rootSignatureDesc{};
 	rootSignatureDesc.Init(
-		3,
+		4,
 		rootParam,
 		2,
 		samplerDesc,
@@ -235,6 +258,20 @@ void PMDRenderer::Update()
 	for (auto& actor : m_actors)
 	{
 		actor->Update();
+	}
+}
+
+void PMDRenderer::BeforeDrawFromLight()
+{
+	m_dx12->CommandList()->SetPipelineState(m_plsShadow.Get());
+	m_dx12->CommandList()->SetGraphicsRootSignature(m_rootSignature.Get());
+}
+
+void PMDRenderer::DrawFromLight()
+{
+	for (auto& actor : m_actors)
+	{
+		actor->Draw();
 	}
 }
 

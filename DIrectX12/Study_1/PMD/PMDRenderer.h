@@ -20,6 +20,8 @@ class PMDRenderer
 	ComPtr<ID3D12PipelineState> m_pipeline{ nullptr }; // PMD用パイプライン
 	ComPtr<ID3D12RootSignature> m_rootSignature{ nullptr };
 
+	ComPtr<ID3D12PipelineState> m_plsShadow; // 影用のパイプライン
+
 private:
 
 	// パイプライン初期化
@@ -38,6 +40,8 @@ public:
 	void AddActor(std::shared_ptr<PMDActor> actor);
 
 	void Update();
+	void BeforeDrawFromLight();
+	void DrawFromLight();
 	void BeforeDraw();
 	void Draw();
 	ID3D12PipelineState* GetPipelineState();

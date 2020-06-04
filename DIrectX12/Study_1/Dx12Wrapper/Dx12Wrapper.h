@@ -101,6 +101,8 @@ class Dx12Wrapper
 	XMFLOAT3 m_target;
 	XMFLOAT3 m_up;
 
+	ComPtr<ID3D12Resource> m_lightDepthBuffer;
+
 private:
 
 	// 最終的なレンダーターゲットの生成
@@ -147,6 +149,7 @@ public:
 	~Dx12Wrapper();
 
 	void Update();
+	void PreDrawShadow();
 	void BeginDraw();
 	void PreDrawToPera1();
 	void SetCameraInfoToConstBuff(); // カメラ情報を定数バッファに、ビューポートやシザー矩形のセット
