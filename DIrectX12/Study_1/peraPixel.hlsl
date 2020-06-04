@@ -5,7 +5,10 @@ float4 ps(Output input) : SV_Target
 {
 	//return float4(input.uv, 1, 1);
 
-	//return tex.Sample(smp, input.uv);
+	// 通常描画
+	{
+		return tex.Sample(smp, input.uv);
+    }
 
 	float4 col = tex.Sample(smp, input.uv);
 
@@ -218,7 +221,7 @@ float4 ps(Output input) : SV_Target
 
 	// シャドウマップ
 	{
-		float dep = pow(depthTex.Sample(smp, input.uv), 20);
-		return float4(dep, dep, dep, 1);
+		//float dep = pow(depthTex.Sample(smp, input.uv), 20);
+		//return float4(dep, dep, dep, 1);
 	}
 }

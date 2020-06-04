@@ -22,7 +22,8 @@ Output BasicVS(
 	{
 		output.pos = mul(shadow, output.pos);
 	}
-    output.svpos = mul(mul(mul(proj, view), world), output.pos);
+    //output.svpos = mul(mul(mul(proj, view), world), output.pos);
+	output.svpos = mul(lightCamera, output.pos);
 	normal.w = 0; // ここが重要（平行移動成分を無効にする）
 	output.normal = mul(world, normal); // 法線にもワールド変換を行う
 	output.vnormal = mul(view, output.normal);

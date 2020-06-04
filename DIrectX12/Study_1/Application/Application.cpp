@@ -137,7 +137,7 @@ void Application::Run()
 		m_dx12->PreDrawToPera1();
 		m_pmdRenderer->Update();
 		m_pmdRenderer->BeforeDraw();
-		m_dx12->SetCameraInfo(); // Œ³‚Í‚±‚±‚¾‚Á‚½
+		m_dx12->SetCameraInfoToConstBuff(); // Œ³‚Í‚±‚±‚¾‚Á‚½
 		m_pmdRenderer->Draw();
 		m_dx12->DrawHorizontalBokeh();
 		m_dx12->Clear();

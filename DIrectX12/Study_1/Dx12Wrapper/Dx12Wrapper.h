@@ -42,6 +42,7 @@ class Dx12Wrapper
 	{
 		XMMATRIX view;   // ビュー行列
 		XMMATRIX proj;   // プロジェクション行列
+		XMMATRIX lightCamera; // ライトから見たビュー
 		XMMATRIX shadow; // 影
 		XMFLOAT3 eye;    // 視点座標
 	};
@@ -96,6 +97,10 @@ class Dx12Wrapper
 
 	float m_clearColor[4]{ 0.0f, 0.0f, 0.5f, 1.0f };
 
+	XMFLOAT3 m_eye;
+	XMFLOAT3 m_target;
+	XMFLOAT3 m_up;
+
 private:
 
 	// 最終的なレンダーターゲットの生成
@@ -144,7 +149,8 @@ public:
 	void Update();
 	void BeginDraw();
 	void PreDrawToPera1();
-	void SetCameraInfo(); // カメラ情報を定数バッファに、ビューポートやシザー矩形のセット
+	void SetCameraInfoToConstBuff(); // カメラ情報を定数バッファに、ビューポートやシザー矩形のセット
+	void SetCameraSetting();
 	void DrawHorizontalBokeh();
 	void Clear();
 	void Draw();

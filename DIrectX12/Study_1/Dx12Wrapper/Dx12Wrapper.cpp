@@ -283,22 +283,7 @@ HRESULT Dx12Wrapper::CreateSceneView()
 	m_mappedSceneData = nullptr;
 	result = m_sceneConstBuff->Map(0, nullptr, (void**)&m_mappedSceneData);
 
-	XMFLOAT3 eye(0.0f, 15.0f, -30.0f);
-	XMFLOAT3 target(0.0f, 10.0f, 0.0f);
-	XMFLOAT3 up(0.0f, 1.0f, 0.0f);
-
-	//m_mappedSceneData->world = XMMatrixIdentity();
-	m_mappedSceneData->view = XMMatrixLookAtLH(XMLoadFloat3(&eye), XMLoadFloat3(&target), XMLoadFloat3(&up));
-	m_mappedSceneData->proj = XMMatrixPerspectiveFovLH(
-		XM_PIDIV4,
-		static_cast<float>(desc.Width) / static_cast<float>(desc.Height), // アスペクト比
-		0.1f, // 近い方
-		1000.0f // 遠い方
-	);
-	m_mappedSceneData->eye = eye;
-
-	XMFLOAT4 planeVec{ 0.0f, 1.0f, 0.0f, 0.0f };
-	m_mappedSceneData->shadow = XMMatrixShadow(XMLoadFloat4(&planeVec), -XMLoadFloat3(&m_parallelLightVec));
+	SetCameraSetting();
 
 	D3D12_DESCRIPTOR_HEAP_DESC descHeapDesc = {};
 	descHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE; // シェーダーから見えるように
@@ -876,6 +861,9 @@ bool Dx12Wrapper::CreateDepthSRV()
 }
 
 Dx12Wrapper::Dx12Wrapper(HWND hwnd)
+	: m_eye(0, 15, -25)
+	, m_target(0, 10, 0)
+	, m_up(0, 1, 0)
 {
 #ifdef _DEBUG
 	//デバッグレイヤーをオンに
@@ -1013,7 +1001,7 @@ void Dx12Wrapper::PreDrawToPera1()
 	m_cmdList->ClearDepthStencilView(dsvHeapPointer, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
 }
 
-void Dx12Wrapper::SetCameraInfo()
+void Dx12Wrapper::SetCameraInfoToConstBuff()
 {
 	// ビュー行列とかのセットをしてる。
 	// つまり、カメラ情報をセットしてる。
@@ -1028,6 +1016,35 @@ void Dx12Wrapper::SetCameraInfo()
 
 	// シザー矩形をセット
 	m_cmdList->RSSetScissorRects(1, m_scissorRect.get());
+}
+
+void Dx12Wrapper::SetCameraSetting()
+{
+	auto eyePos = XMLoadFloat3(&m_eye);
+	auto targetPos = XMLoadFloat3(&m_target);
+	auto upVec = XMLoadFloat3(&m_up);
+
+	m_mappedSceneData->eye = m_eye;
+	m_mappedSceneData->view = XMMatrixLookAtLH(eyePos, targetPos, upVec);
+	m_mappedSceneData->proj = XMMatrixPerspectiveFovLH(
+		XM_PIDIV4,
+		static_cast<float>(m_windowSize.cx) / static_cast<float>(m_windowSize.cy),
+		0.1f,
+		100.0f);
+
+	auto plane = XMFLOAT4(0, 1, 0, 0); // 平面
+	XMVECTOR planeVec = XMLoadFloat4(&plane);
+
+	auto light = XMFLOAT4(-1, 1, -1, 0);
+	XMVECTOR lightVec = XMLoadFloat4(&light);
+	m_mappedSceneData->shadow = XMMatrixShadow(planeVec, lightVec);
+
+	auto lightPos = targetPos + XMVector3Normalize(lightVec)
+		* XMVector3Length(XMVectorSubtract(targetPos, eyePos)).m128_f32[0];
+
+	m_mappedSceneData->lightCamera =
+		XMMatrixLookAtLH(lightPos, targetPos, upVec)
+		* XMMatrixOrthographicLH(40, 40, 0.1f, 100.0f);
 }
 
 void Dx12Wrapper::DrawHorizontalBokeh()
