@@ -40,13 +40,7 @@ float4 BasicPS(Output input) : SV_TARGET
 	float depthFromLight = lightDepthTex.Sample(smp, shadowUV);
 	float shadowWeight = 1.0f;
 
-	//if (depthFromLight < posFromLightVP.z)
-	//{
-	//	shadowWeight = 0.5f;
-	//}
-
-	// ˆÃ‚­‚È‚Á‚Ä‚é‚©‚ç0‚É‚È‚Á‚Ä‚éH
-	if (depthFromLight == 0)
+	if (depthFromLight < posFromLightVP.z)
 	{
 		shadowWeight = 0.5f;
 	}

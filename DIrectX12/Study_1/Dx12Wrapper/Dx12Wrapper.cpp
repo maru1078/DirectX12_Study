@@ -972,6 +972,8 @@ void Dx12Wrapper::PreDrawShadow()
 	handle.ptr += m_device->GetDescriptorHandleIncrementSize(
 		D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
 	m_cmdList->OMSetRenderTargets(0, nullptr, false, &handle);
+
+	m_cmdList->ClearDepthStencilView(handle, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
 }
 
 void Dx12Wrapper::BeginDraw()
