@@ -9,6 +9,7 @@
 #include<wrl.h>
 #include<string>
 #include<functional>
+#include <array>
 
 using namespace DirectX;
 using namespace Microsoft::WRL;
@@ -65,7 +66,7 @@ class Dx12Wrapper
 	ComPtr<ID3D12Resource> m_gradTex{ nullptr };
 
 	// マルチパスレンダリング
-	ComPtr<ID3D12Resource> m_peraResource;
+	std::array<ComPtr<ID3D12Resource>, 2> m_pera1Resources;
 	ComPtr<ID3D12DescriptorHeap> m_peraRTVHeap; // レンダーターゲット用
 	ComPtr<ID3D12DescriptorHeap> m_peraSRVHeap; // テクスチャ用
 
@@ -135,7 +136,7 @@ private:
 
 	bool CreatePeraResourceAndView();
 
-	bool CreatePeraPolygon();
+	bool CreatePeraPipeline();
 
 	void CreateBokehParamResource();
 

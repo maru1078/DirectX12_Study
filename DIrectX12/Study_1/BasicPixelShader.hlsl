@@ -1,6 +1,6 @@
 #include "BasicShaderHeader.hlsli"
 
-float4 BasicPS(Output input) : SV_TARGET
+PixelOutput BasicPS(Output input)/* : SV_TARGET*/
 {
 	//return float4(input.uv, 1, 1);
 
@@ -9,10 +9,10 @@ float4 BasicPS(Output input) : SV_TARGET
 	//return float4(0, 0, 0, 1);
 	//return float4(input.normal.xyz, 1);
 
-	if (input.instNo == 1)
-	{
-		return float4(0, 0, 0, 1);
-	}
+	//if (input.instNo == 1)
+	//{
+	//	return float4(0, 0, 0, 1);
+	//}
 
 	float3 light = normalize(float3(1, -1, 1));// 左上手前からの光
 
@@ -46,10 +46,10 @@ float4 BasicPS(Output input) : SV_TARGET
 	}
 
 	// 「輝度にこのshadowWeightを乗算して」って書いてあるけど・・・？
-	toonDif *= shadowWeight;
+	//toonDif *= shadowWeight;
 
 	// いつの間にかサンプルと違くなってる・・・(´;ω;｀)
-	return max(saturate(
+	float4 ret =  max(saturate(
 		toonDif // 輝度（トゥーン）
 		* diffuse // ディフューズ色
 		* texColor // テクスチャカラー
@@ -58,6 +58,23 @@ float4 BasicPS(Output input) : SV_TARGET
 		+ float4(specularB * specular.rgb, 1)) // スペキュラ
 		, float4(texColor * ambient, 1) // アンビエント
 	);
+
+	PixelOutput output;
+	output.col = float4(ret.rgb * shadowWeight, ret.a);
+	//output.col = float4((input.normal.xyz + 1.0) / 2.0, 1);
+	output.normal.rgb = float3((input.normal.xyz + 1.0f) / 2.0f);
+	output.normal.a = 1;
+
+	if (input.instNo == 1)
+	{
+		output.col = float4(0, 0, 0, 1);
+		output.normal = float4(0, 0, 0, 1);
+		return output;
+	}
+
+	return output;
+
+	//return float4(ret.rgb * shadowWeight, ret.a);
 
 	//return float4(brightness, brightness, brightness, 1)
 	//	* diffuse

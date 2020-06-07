@@ -1,13 +1,13 @@
 #include "peraHeader.hlsli"
 
 // ピクセルシェーダー
-float4 ps(Output input) : SV_Target
+float4 ps(Output input) : SV_TARGET
 {
 	//return float4(input.uv, 1, 1);
 
 	// 通常描画
 	{
-		return tex.Sample(smp, input.uv);
+		//return tex.Sample(smp, input.uv);
     }
 
 	float4 col = tex.Sample(smp, input.uv);
@@ -224,4 +224,29 @@ float4 ps(Output input) : SV_Target
 		//float dep = pow(depthTex.Sample(smp, input.uv), 20);
 		//return float4(dep, dep, dep, 1);
 	}
+
+	// マルチレンダーターゲット
+	{
+		if (input.uv.x < 0.2 && input.uv.y < 0.2) // 深度出力
+		{
+			float depth = depthTex.Sample(smp, input.uv * 5);
+			depth = pow(depth, 50);
+			return float4(depth, depth, depth, 1);
+		}
+		else if (input.uv.x < 0.2 && input.uv.y < 0.4) // ライトからの深度出力
+		{
+			//return float4(1.0f, 0.0f, 0.0f, 1.0f);
+			float depth = lightDepthTex.Sample(smp, (input.uv - float2(0, 0.2)) * 5);
+
+			depth = 1 - depth;
+			return float4(depth, depth, depth, 1);
+		}
+		else if (input.uv.x < 0.2 && input.uv.y < 0.6) // 法線出力
+		{
+			//return float4(1.0f, 1.0f, 0.0f, 1.0f);
+			return texNormal.Sample(smp, (input.uv - float2(0, 0.4)) * 5);
+		}
+	}
+
+	return tex.Sample(smp, input.uv);
 }

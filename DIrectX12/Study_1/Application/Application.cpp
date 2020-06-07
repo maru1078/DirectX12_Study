@@ -77,37 +77,37 @@ bool Application::Init()
 	
 	auto miku = std::shared_ptr<PMDActor>(new PMDActor("Model/初音ミク.pmd", m_dx12));
 	miku->LoadVMDFile("motion/pose.vmd");
-	miku->SetPos(-10.0f, 0.0f, 0.0f);
 	m_pmdRenderer->AddActor(miku);
 
-	auto ruka = std::shared_ptr<PMDActor>(new PMDActor("Model/巡音ルカ.pmd", m_dx12));
-	ruka->LoadVMDFile("motion/pose.vmd");
-	m_pmdRenderer->AddActor(ruka);
+	//auto ruka = std::shared_ptr<PMDActor>(new PMDActor("Model/巡音ルカ.pmd", m_dx12));
+	//ruka->LoadVMDFile("motion/pose.vmd");
+	//ruka->SetPos(-10.0f, 0.0f, 0.0f);
+	//m_pmdRenderer->AddActor(ruka);
 
-	auto haku = std::shared_ptr<PMDActor>(new PMDActor("Model/弱音ハク.pmd", m_dx12));
-	haku->LoadVMDFile("motion/pose.vmd");
-	haku->SetPos(-5.0f, 0.0f, 5.0f);
-	m_pmdRenderer->AddActor(haku);
+	//auto haku = std::shared_ptr<PMDActor>(new PMDActor("Model/弱音ハク.pmd", m_dx12));
+	//haku->LoadVMDFile("motion/pose.vmd");
+	//haku->SetPos(-5.0f, 0.0f, 5.0f);
+	//m_pmdRenderer->AddActor(haku);
 
-	auto rin = std::shared_ptr<PMDActor>(new PMDActor("Model/鏡音リン.pmd", m_dx12));
-	rin->LoadVMDFile("motion/pose.vmd");
-	rin->SetPos(10.0f, 0.0f, 10.0f);
-	m_pmdRenderer->AddActor(rin);
+	//auto rin = std::shared_ptr<PMDActor>(new PMDActor("Model/鏡音リン.pmd", m_dx12));
+	//rin->LoadVMDFile("motion/pose.vmd");
+	//rin->SetPos(10.0f, 0.0f, 10.0f);
+	//m_pmdRenderer->AddActor(rin);
 
-	auto ren = std::shared_ptr<PMDActor>(new PMDActor("Model/鏡音レン.pmd", m_dx12));
-	ren->LoadVMDFile("motion/pose.vmd");
-	ren->SetPos(5.0f, 0.0f, 5.0f);
-	m_pmdRenderer->AddActor(ren);
+	//auto ren = std::shared_ptr<PMDActor>(new PMDActor("Model/鏡音レン.pmd", m_dx12));
+	//ren->LoadVMDFile("motion/pose.vmd");
+	//ren->SetPos(5.0f, 0.0f, 5.0f);
+	//m_pmdRenderer->AddActor(ren);
 
-	auto meiko = std::shared_ptr<PMDActor>(new PMDActor("Model/咲音メイコ.pmd", m_dx12));
-	meiko->LoadVMDFile("motion/pose.vmd");
-	meiko->SetPos(-10.0f, 0.0f, 10.0f);
-	m_pmdRenderer->AddActor(meiko);
+	//auto meiko = std::shared_ptr<PMDActor>(new PMDActor("Model/咲音メイコ.pmd", m_dx12));
+	//meiko->LoadVMDFile("motion/pose.vmd");
+	//meiko->SetPos(-10.0f, 0.0f, 10.0f);
+	//m_pmdRenderer->AddActor(meiko);
 
-	auto kaito = std::shared_ptr<PMDActor>(new PMDActor("Model/カイト.pmd", m_dx12));
-	kaito->LoadVMDFile("motion/pose.vmd");
-	kaito->SetPos(10.0f, 0.0f, 0.0f);
-	m_pmdRenderer->AddActor(kaito);
+	//auto kaito = std::shared_ptr<PMDActor>(new PMDActor("Model/カイト.pmd", m_dx12));
+	//kaito->LoadVMDFile("motion/pose.vmd");
+	//kaito->SetPos(10.0f, 0.0f, 0.0f);
+	//m_pmdRenderer->AddActor(kaito);
 
 	return true;
 }
@@ -135,6 +135,7 @@ void Application::Run()
 		}
 		
 		m_pmdRenderer->Update();
+		m_dx12->SetCameraSetting();
 
 		m_pmdRenderer->BeforeDrawFromLight();
 		m_dx12->PreDrawShadow();
@@ -142,9 +143,9 @@ void Application::Run()
 
 		m_dx12->PreDrawToPera1();
 		m_pmdRenderer->BeforeDraw();
-		m_dx12->SetCameraInfoToConstBuff(); // 元はここだった
+		m_dx12->SetCameraInfoToConstBuff(); // 元はここだった（DrawToPera1()）
 		m_pmdRenderer->Draw();
-		m_dx12->DrawHorizontalBokeh();
+		//m_dx12->DrawHorizontalBokeh();
 		m_dx12->Clear();
 		//m_dx12->DrawToPera1();
 		m_dx12->Draw();
