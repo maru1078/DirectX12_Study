@@ -146,6 +146,10 @@ void Application::Run()
 		m_dx12->SetCameraInfoToConstBuff(); // 元はここだった（DrawToPera1()）
 		m_pmdRenderer->Draw();
 		//m_dx12->DrawHorizontalBokeh();
+
+		// ブルーム用
+		m_dx12->DrawShrinkTextureForBlur();
+
 		m_dx12->Clear();
 		//m_dx12->DrawToPera1();
 		m_dx12->Draw();

@@ -238,7 +238,7 @@ float4 ps(Output input) : SV_TARGET
 			//return float4(1.0f, 0.0f, 0.0f, 1.0f);
 			float depth = lightDepthTex.Sample(smp, (input.uv - float2(0, 0.2)) * 5);
 
-			depth = 1 - depth;
+			//depth = 1 - depth;
 			return float4(depth, depth, depth, 1);
 		}
 		else if (input.uv.x < 0.2 && input.uv.y < 0.6) // 法線出力
@@ -249,4 +249,16 @@ float4 ps(Output input) : SV_TARGET
 	}
 
 	return tex.Sample(smp, input.uv);
+
+	// ディファードシェーディング
+	{
+		//float4 normal = texNormal.Sample(smp, input.uv);
+        //normal = normal * 2.0f - 1.0f;
+        
+        //float3 light = normalize(float3(1.0f, -1.0f, 1.0f));
+        //const float ambient = 0.25f;
+        //float diffB = max(saturate(dot(normal.xyz, -light)), ambient);
+        
+        //return tex.Sample(smp, input.uv) * float4(diffB, diffB, diffB, 1);
+	}
 }

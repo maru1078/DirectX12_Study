@@ -1094,7 +1094,6 @@ PMDActor::PMDActor(const char * filePath, std::shared_ptr<Dx12Wrapper> dx12)
 	CreateMaterialData();
 	CreateMaterialAndTextureView();
 
-	//LoadVMDFile("motion/squat.vmd", "motion");
 	PlayAnimation();
 }
 
@@ -1287,9 +1286,10 @@ HRESULT PMDActor::LoadVMDFile(const char * path)
 
 void PMDActor::Update()
 {
-	//m_angle += 0.001f;
-	//m_mappedMatrices[0] = XMMatrixRotationY(m_angle);
 	m_mappedMatrices[0] = XMMatrixTranslation(m_pos.x, m_pos.y, m_pos.z);
+
+	/*m_angle += 0.001f;
+	m_mappedMatrices[0] *= XMMatrixRotationY(m_angle);*/
 
 	MotionUpdate();
 }
@@ -1325,7 +1325,7 @@ void PMDActor::Draw(bool isShadow)
 		{
 			m_dx12->CommandList()->SetGraphicsRootDescriptorTable(2, materialH);
 
-			m_dx12->CommandList()->DrawIndexedInstanced(m.indicesNum, 2, idxOffset, 0, 0);
+			m_dx12->CommandList()->DrawIndexedInstanced(m.indicesNum, 1, idxOffset, 0, 0);
 
 			// ヒープポインターとインデックスを次に進める
 			materialH.ptr += cbvsrvIncSize;

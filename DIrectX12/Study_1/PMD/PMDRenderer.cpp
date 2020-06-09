@@ -105,9 +105,10 @@ HRESULT PMDRenderer::CreateGraphicsPipelineForPMD()
 	// 三角形で構成
 	gpipeline.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
 
-	gpipeline.NumRenderTargets = 2; // 2に変更
+	gpipeline.NumRenderTargets = 3; // 2に変更
 	gpipeline.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM; // 0 ～ 1 に正規化されたRGBA
 	gpipeline.RTVFormats[1] = DXGI_FORMAT_R8G8B8A8_UNORM; // 0 ～ 1 に正規化されたRGBA
+	gpipeline.RTVFormats[2] = DXGI_FORMAT_R8G8B8A8_UNORM; // 0 ～ 1 に正規化されたRGBA
 
 	gpipeline.SampleDesc.Count = 1;   // サンプリングは 1 ピクセルにつき 1
 	gpipeline.SampleDesc.Quality = 0; // クオリティは最低

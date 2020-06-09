@@ -104,6 +104,8 @@ class Dx12Wrapper
 
 	ComPtr<ID3D12Resource> m_lightDepthBuffer;
 
+	std::array<ComPtr<ID3D12Resource>, 2> m_bloomBuffer; // ブルーム用バッファ
+
 private:
 
 	// 最終的なレンダーターゲットの生成
@@ -144,6 +146,8 @@ private:
 
 	bool CreateDepthSRV();
 
+	bool CreateBloomBuffer();
+
 public:
 
 	Dx12Wrapper(HWND hwnd);
@@ -156,6 +160,7 @@ public:
 	void SetCameraInfoToConstBuff(); // カメラ情報を定数バッファに、ビューポートやシザー矩形のセット
 	void SetCameraSetting();
 	void DrawHorizontalBokeh();
+	void DrawShrinkTextureForBlur();
 	void Clear();
 	void Draw();
 	//void EndDraw();

@@ -33,7 +33,7 @@ PixelOutput BasicPS(Output input)/* : SV_TARGET*/
 
 	// テクスチャカラー
 	float4 texColor = tex.Sample(smp, input.uv);
-	 //float brightness = dot(-light, input.normal);
+	//float brightness = dot(-light, input.normal);
 
 	float3 posFromLightVP = input.tpos.xyz / input.tpos.w;
 	float2 shadowUV = (posFromLightVP + float2(1, -1)) * float2(0.5, -0.5);
@@ -49,13 +49,13 @@ PixelOutput BasicPS(Output input)/* : SV_TARGET*/
 	//toonDif *= shadowWeight;
 
 	// いつの間にかサンプルと違くなってる・・・(´;ω;｀)
-	float4 ret =  max(saturate(
+	float4 ret = max(saturate(
 		toonDif // 輝度（トゥーン）
 		* diffuse // ディフューズ色
 		* texColor // テクスチャカラー
 		* sph.Sample(smp, sphereMapUV)) // スフィアマップ（乗算）
 		+ saturate(spa.Sample(smp, sphereMapUV) * texColor // スフィアマップ（加算）
-		+ float4(specularB * specular.rgb, 1)) // スペキュラ
+			+ float4(specularB * specular.rgb, 1)) // スペキュラ
 		, float4(texColor * ambient, 1) // アンビエント
 	);
 
@@ -64,6 +64,18 @@ PixelOutput BasicPS(Output input)/* : SV_TARGET*/
 	//output.col = float4((input.normal.xyz + 1.0) / 2.0, 1);
 	output.normal.rgb = float3((input.normal.xyz + 1.0f) / 2.0f);
 	output.normal.a = 1;
+	output.highLum = (ret > 1.0f);
+
+	// ディファードシェーディング
+	{
+     //   float2 spUV = (input.normal.xy * float2(1, -1) + float2(1, 1)) / 2;
+	    //float4 sphCol = sph.Sample(smp, spUV);
+	    //float4 spaCol = spa.Sample(smp, spUV);
+	    //float4 texCol = tex.Sample(smp, input.uv);
+	    //
+	    //output.col = float4(spaCol + sphCol * texCol * diffuse);
+	}
+	
 
 	if (input.instNo == 1)
 	{
