@@ -1,11 +1,6 @@
-float4 BasicPS(float4 pos : SV_POSITION) : SV_TARGET
-{
-	// Chapter4
-	{
-		// posはスクリーン座標？
-		pos.x = pos.x / 960;
-	    pos.y = pos.y / 540;
+#include "BasicShaderHeader.hlsli"
 
-	    return float4(pos.xy, 1.0, 1.0);
-    }
+float4 BasicPS(Output input) : SV_TARGET
+{
+	return float4(input.uv, 1, 1);
 }

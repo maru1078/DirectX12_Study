@@ -222,13 +222,19 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
 		handle.ptr += _dev->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
 	}
 
-	// 頂点バッファ作成
-	XMFLOAT3 vertices[4] = 
+	struct Vertex
 	{
-		{ -0.4f, -0.7f, 0.0f }, // 左下
-		{ -0.4f,  0.7f, 0.0f }, // 左上
-		{  0.4f, -0.7f, 0.0f }, // 右下
-		{  0.4f,  0.7f, 0.0f }, // 右上
+		XMFLOAT3 pos; // xyz座標
+		XMFLOAT2 uv;  // uv座標
+	};
+
+	// 頂点バッファ作成
+	Vertex vertices[4] =
+	{
+		{ { -0.4f, -0.7f, 0.0f }, { 0.0f, 1.0f } }, // 左下
+		{ { -0.4f,  0.7f, 0.0f }, { 0.0f, 0.0f } }, // 左上
+		{ {  0.4f, -0.7f, 0.0f }, { 1.0f, 1.0f } }, // 右下
+		{ {  0.4f,  0.7f, 0.0f }, { 1.0f, 0.0f } }, // 右上
 	};
 
 	D3D12_HEAP_PROPERTIES heapProp{};
@@ -257,7 +263,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
 		nullptr,
 		IID_PPV_ARGS(vertBuff.ReleaseAndGetAddressOf()));
 
-	XMFLOAT3* vertMap{ nullptr };
+	Vertex* vertMap{ nullptr };
 	result = vertBuff->Map(0, nullptr, (void**)&vertMap);
 	std::copy(std::begin(vertices), std::end(vertices), vertMap);
 	vertBuff->Unmap(0, nullptr);
@@ -370,7 +376,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
 
 	D3D12_INPUT_ELEMENT_DESC inputLayout[] = 
 	{
-		{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
+		{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }, // 座標
+	    { "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT,    0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }, // uv
 	};
 
 	// ルートシグネチャ作成
