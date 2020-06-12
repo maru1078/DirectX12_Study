@@ -244,12 +244,18 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
 		handle.ptr += _dev->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
 	}
 
-	XMMATRIX matrix = XMMatrixIdentity();
-	matrix.r[0].m128_f32[0] = 2.0f / window_width;
-	matrix.r[1].m128_f32[1] = -2.0f / window_height;
-	
-	matrix.r[3].m128_f32[0] = -1.0f;
-	matrix.r[3].m128_f32[1] = 1.0f;
+	XMMATRIX worldMat = XMMatrixIdentity();
+	XMFLOAT3 eye{ 0.0f, 0.0f, -5.0f };
+	XMFLOAT3 target{ 0.0f, 0.0f, 0.0f };
+	XMFLOAT3 up{ 0.0f, 1.0f, 0.0f };
+
+	worldMat = XMMatrixRotationY(XM_PIDIV4);
+	auto viewMat = XMMatrixLookAtLH(XMLoadFloat3(&eye), XMLoadFloat3(&target), XMLoadFloat3(&up));
+	auto projMat = XMMatrixPerspectiveFovLH(
+		XM_PIDIV2,
+		static_cast<float>(window_width) / static_cast<float>(window_height),
+		1.0f,
+		100.0f);
 
 	// 定数バッファ作成
 	ComPtr<ID3D12Resource> constBuff{ nullptr };
@@ -257,14 +263,14 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
 	result = _dev->CreateCommittedResource(
 		&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
 		D3D12_HEAP_FLAG_NONE,
-		&CD3DX12_RESOURCE_DESC::Buffer((sizeof(matrix) + 0xff) & ~0xff),
+		&CD3DX12_RESOURCE_DESC::Buffer((sizeof(worldMat) + 0xff) & ~0xff),
 		D3D12_RESOURCE_STATE_GENERIC_READ,
 		nullptr,
 		IID_PPV_ARGS(constBuff.ReleaseAndGetAddressOf()));
 
 	XMMATRIX* mapMat{ nullptr }; // マップ先を示すポインター
 	result = constBuff->Map(0, nullptr, (void**)&mapMat); // マップ
-	*mapMat = matrix; // 行列の内容をコピー
+	*mapMat = worldMat; // 行列の内容をコピー
 
 	struct Vertex
 	{
@@ -275,10 +281,10 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
 	// 頂点バッファ作成
 	Vertex vertices[4] =
 	{
-		{ {  0.0f,100.0f, 0.0f }, { 0.0f, 1.0f } }, // 左下
-		{ {  0.0f,  0.0f, 0.0f }, { 0.0f, 0.0f } }, // 左上
-		{ {100.0f,100.0f, 0.0f }, { 1.0f, 1.0f } }, // 右下
-		{ {100.0f,  0.0f, 0.0f }, { 1.0f, 0.0f } }, // 右上
+		{ { -1.0f, -1.0f, 0.0f }, { 0.0f, 1.0f } }, // 左下
+		{ { -1.0f,  1.0f, 0.0f }, { 0.0f, 0.0f } }, // 左上
+		{ {  1.0f, -1.0f, 0.0f }, { 1.0f, 1.0f } }, // 右下
+		{ {  1.0f,  1.0f, 0.0f }, { 1.0f, 0.0f } }, // 右上
 	};
 
 	D3D12_HEAP_PROPERTIES heapProp{};
@@ -797,6 +803,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
 	scissorRect.right = window_width;   // 切り抜き右座標
 	scissorRect.bottom = window_height; // 切り抜きした座標
 
+	float angle = 0;
+
 	// ループ
 	MSG msg{};
 	while (true)
@@ -812,6 +820,10 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
 		{
 			break;
 		}
+
+		angle += 0.05f;
+		worldMat = XMMatrixRotationY(angle);
+		*mapMat = worldMat * viewMat * projMat;
 
 		// 現在のバックバッファーのインデックスを取得
 		auto bbIdx = _swapChain->GetCurrentBackBufferIndex();
