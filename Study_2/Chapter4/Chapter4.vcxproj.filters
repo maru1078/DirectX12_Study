@@ -14,4 +14,13 @@
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
     </Filter>
   </ItemGroup>
+  <ItemGroup>
+    <FxCompile Include="Shader\BasicPixelShader.hlsl" />
+    <FxCompile Include="Shader\BasicVertexShader.hlsl" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="Src\main.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+  </ItemGroup>
 </Project>
