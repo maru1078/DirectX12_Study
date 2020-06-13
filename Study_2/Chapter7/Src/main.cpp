@@ -28,6 +28,7 @@ using namespace DirectX;
 #pragma comment(lib, "DirectXTex.lib")
 
 #include <d3dx12.h>
+//#include <stdio.h>
 
 constexpr size_t pmdvertex_size = 38; // 1頂点当たりのサイズ
 
@@ -246,6 +247,59 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
 		handle.ptr += _dev->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
 	}
 
+
+	// 深度バッファー作成
+	D3D12_RESOURCE_DESC depthResDesc{};
+	depthResDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D; // 2次元のテクスチャデータ
+	depthResDesc.Width = window_width;   // 幅と高さはレンダーターゲットと同じ
+	depthResDesc.Height = window_height; // 
+	depthResDesc.DepthOrArraySize = 1;   // テクスチャ配列でも、3Dテクスチャでもない
+	depthResDesc.Format = DXGI_FORMAT_D32_FLOAT; // 深度値書き込み用フォーマット
+	depthResDesc.SampleDesc.Count = 1;
+	depthResDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL; // デプスステンシルとして使用
+
+	// 深度値用ヒーププロパティ
+	D3D12_HEAP_PROPERTIES depthHeapProp{};
+	depthHeapProp.Type = D3D12_HEAP_TYPE_DEFAULT; // DEFAULTなのであとはUNKNOWNでよい
+	depthHeapProp.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
+	depthHeapProp.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
+	
+	// このクリアバリューが重要な意味を持つ
+	D3D12_CLEAR_VALUE depthClearValue{};
+	depthClearValue.DepthStencil.Depth = 1.0f; // 深さ 1.0f(最大値）でクリア
+	depthClearValue.Format = DXGI_FORMAT_D32_FLOAT; // 32ビットfloat値としてクリア
+
+	ComPtr<ID3D12Resource> depthBuffer{ nullptr };
+	result = _dev->CreateCommittedResource(
+		&depthHeapProp,
+		D3D12_HEAP_FLAG_NONE,
+		&depthResDesc,
+		D3D12_RESOURCE_STATE_DEPTH_WRITE, // 深度値書き込み
+		nullptr,
+		IID_PPV_ARGS(depthBuffer.ReleaseAndGetAddressOf()));
+
+	// 深度のためのディスクリプタヒープ作成
+	D3D12_DESCRIPTOR_HEAP_DESC dsvHeapDesc{}; // 深度に使うことがわかればよい
+	dsvHeapDesc.NumDescriptors = 1; // 深度ビューは1つ
+	dsvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_DSV; // デプスステンシルビューとして使う
+	
+	ComPtr<ID3D12DescriptorHeap> dsvHeap{ nullptr };
+	result = _dev->CreateDescriptorHeap(&dsvHeapDesc, IID_PPV_ARGS(dsvHeap.ReleaseAndGetAddressOf()));
+
+	// 深度ビュー作成
+	D3D12_DEPTH_STENCIL_VIEW_DESC dsvDesc{};
+	dsvDesc.Format = DXGI_FORMAT_D32_FLOAT; // 深度値に32ビット使用
+	dsvDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D; // 2Dテクスチャ
+	dsvDesc.Flags = D3D12_DSV_FLAG_NONE; // フラグは特になし
+	_dev->CreateDepthStencilView(depthBuffer.Get(), &dsvDesc, dsvHeap->GetCPUDescriptorHandleForHeapStart());
+
+	// カメラ情報の設定
+	struct MatricesData
+	{
+		XMMATRIX world; // モデル本体を回転させたり移動させたりする行列
+		XMMATRIX viewproj; // ビューとプロジェクション合成行列
+	};
+
 	XMMATRIX worldMat = XMMatrixIdentity();
 	XMFLOAT3 eye{ 0.0f, 10.0f, -15.0f };
 	XMFLOAT3 target{ 0.0f, 10.0f, 0.0f };
@@ -265,14 +319,15 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
 	result = _dev->CreateCommittedResource(
 		&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
 		D3D12_HEAP_FLAG_NONE,
-		&CD3DX12_RESOURCE_DESC::Buffer((sizeof(worldMat) + 0xff) & ~0xff),
+		&CD3DX12_RESOURCE_DESC::Buffer((sizeof(MatricesData) + 0xff) & ~0xff),
 		D3D12_RESOURCE_STATE_GENERIC_READ,
 		nullptr,
 		IID_PPV_ARGS(constBuff.ReleaseAndGetAddressOf()));
 
-	XMMATRIX* mapMat{ nullptr }; // マップ先を示すポインター
+	MatricesData* mapMat{ nullptr }; // マップ先を示すポインター
 	result = constBuff->Map(0, nullptr, (void**)&mapMat); // マップ
-	*mapMat = worldMat; // 行列の内容をコピー
+	mapMat->world = worldMat; // 行列の内容をコピー
+	mapMat->viewproj = viewMat * projMat;
 
 		// PMDデータ
 	struct PMDHeader
@@ -835,6 +890,13 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
 	gpipeline.SampleDesc.Count = 1; // サンプリングは 1 ピクセルにつき 1
 	gpipeline.SampleDesc.Quality = 0; // クオリティは最低
 
+	// 深度バッファー周りの設定
+	gpipeline.DepthStencilState.DepthEnable = true; // 深度バッファを使う
+	gpipeline.DepthStencilState.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL; // ピクセル描画時に深度情報をに書き込む
+	gpipeline.DepthStencilState.DepthFunc = D3D12_COMPARISON_FUNC_LESS; // 小さい方を採用
+	gpipeline.DepthStencilState.StencilEnable = false;
+	gpipeline.DSVFormat = DXGI_FORMAT_D32_FLOAT;
+
 	// パイプライン作成
 	ComPtr<ID3D12PipelineState> _pipelineState{ nullptr };
 	result = _dev->CreateGraphicsPipelineState(
@@ -877,7 +939,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
 
 		angle += 0.01f;
 		worldMat = XMMatrixRotationY(angle);
-		*mapMat = worldMat * viewMat * projMat;
+		mapMat->world = worldMat;
 
 		// 現在のバックバッファーのインデックスを取得
 		auto bbIdx = _swapChain->GetCurrentBackBufferIndex();
@@ -897,15 +959,20 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
 			1, &CD3DX12_RESOURCE_BARRIER::Transition(
 				_backBuffers[bbIdx].Get(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET));
 
-		// レンダーターゲットビューをセット
+		// レンダーターゲットビュー、デプスステンシルビューをセット
 		auto rtvH = _rtvHeaps->GetCPUDescriptorHandleForHeapStart();
 		rtvH.ptr += bbIdx * _dev->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
 
-		_cmdList->OMSetRenderTargets(1, &rtvH, true, nullptr);
+		auto dsvH = dsvHeap->GetCPUDescriptorHandleForHeapStart();
+
+		_cmdList->OMSetRenderTargets(1, &rtvH, true, &dsvH);
 
 		// レンダーターゲットのクリア
 		float clearColor[4]{ 1.0f, 1.0f, 1.0f, 1.0f }; // 背景色（今は黄色）
 		_cmdList->ClearRenderTargetView(rtvH, clearColor, 0, nullptr);
+
+		// 深度バッファーのクリア
+		_cmdList->ClearDepthStencilView(dsvH, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0.0f, 0, nullptr);
 
 		// ビューポートをセット
 		_cmdList->RSSetViewports(1, &viewport);

@@ -8,7 +8,9 @@ Output BasicVS(
 	min16uint weight  : WEIGHT)
 {
 	Output output;
-	output.svpos = mul(mat, pos);
+	output.svpos = mul(mul(viewproj, world), pos); // シェーダーでは列優先なので順番に注意
+	normal.w = 0; // ここ重要（平行移動成分を無効にする）
+	output.normal = mul(world, normal); // 法線にも変換を行う
 	output.uv = uv;
 
 	return output;
