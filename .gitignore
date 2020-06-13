@@ -10,6 +10,13 @@
 *.user
 *.sln.docstates
 
+[Mm]odel/
+[Tt]oon/
+[Ii]mage/
+[Mm]otion/
+[Nn]ormal/
+DirectXTex/
+
 # Build results
 [Dd]ebug/
 [Rr]elease/
