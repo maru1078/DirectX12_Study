@@ -262,7 +262,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
 	depthHeapProp.Type = D3D12_HEAP_TYPE_DEFAULT; // DEFAULTなのであとはUNKNOWNでよい
 	depthHeapProp.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
 	depthHeapProp.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
-	
+
 	// このクリアバリューが重要な意味を持つ
 	D3D12_CLEAR_VALUE depthClearValue{};
 	depthClearValue.DepthStencil.Depth = 1.0f; // 深さ 1.0f(最大値）でクリア
@@ -281,7 +281,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
 	D3D12_DESCRIPTOR_HEAP_DESC dsvHeapDesc{}; // 深度に使うことがわかればよい
 	dsvHeapDesc.NumDescriptors = 1; // 深度ビューは1つ
 	dsvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_DSV; // デプスステンシルビューとして使う
-	
+
 	ComPtr<ID3D12DescriptorHeap> dsvHeap{ nullptr };
 	result = _dev->CreateDescriptorHeap(&dsvHeapDesc, IID_PPV_ARGS(dsvHeap.ReleaseAndGetAddressOf()));
 
@@ -328,7 +328,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
 	mapMat->world = worldMat; // 行列の内容をコピー
 	mapMat->viewproj = viewMat * projMat;
 
-		// PMDデータ
+	// PMDデータ
 	struct PMDHeader
 	{
 		float version;       // 例：00 00 80 3F == 1.00
@@ -354,7 +354,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
 	std::vector<unsigned char> vertices; // バッファの確保
 	unsigned int indicesNum; // インデックス数
 	std::vector<unsigned short> indices;
-	
+
 	fopen_s(&fp, "Model/初音ミク.pmd", "rb");
 	fread(signature, sizeof(signature), 1, fp);
 	fread(&pmdHeader, sizeof(pmdHeader), 1, fp);
@@ -362,7 +362,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
 	fread(&vertNum, sizeof(vertNum), 1, fp);
 	vertices.resize(vertNum * pmdvertex_size);
 	fread(vertices.data(), vertices.size(), 1, fp);
-	
+
 	fread(&indicesNum, sizeof(indicesNum), 1, fp);
 	indices.resize(indicesNum);
 	fread(indices.data(), indices.size() * sizeof(indices[0]), 1, fp);
