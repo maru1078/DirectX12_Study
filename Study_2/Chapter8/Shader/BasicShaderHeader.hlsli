@@ -16,3 +16,10 @@ cbuffer cbuff0 : register(b0)
 	matrix world; // ワールド変換行列
 	matrix viewproj; // ビュープロジェクション変換行列
 };
+
+cbuffer Material : register(b1)
+{
+	float4 diffuse;  // ディフューズ色
+	float4 specular; // スペキュラ
+	float3 ambient;	 // アンビエント
+};

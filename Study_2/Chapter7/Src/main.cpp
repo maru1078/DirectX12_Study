@@ -251,7 +251,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
 	D3D12_RESOURCE_DESC depthResDesc{};
 	depthResDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D; // 2次元のテクスチャデータ
 	depthResDesc.Width = window_width;   // 幅と高さはレンダーターゲットと同じ
-	depthResDesc.Height = window_height; // 
+	depthResDesc.Height = window_height;
 	depthResDesc.DepthOrArraySize = 1;   // テクスチャ配列でも、3Dテクスチャでもない
 	depthResDesc.Format = DXGI_FORMAT_D32_FLOAT; // 深度値書き込み用フォーマット
 	depthResDesc.SampleDesc.Count = 1;
@@ -274,7 +274,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
 		D3D12_HEAP_FLAG_NONE,
 		&depthResDesc,
 		D3D12_RESOURCE_STATE_DEPTH_WRITE, // 深度値書き込み
-		nullptr,
+		&depthClearValue,
 		IID_PPV_ARGS(depthBuffer.ReleaseAndGetAddressOf()));
 
 	// 深度のためのディスクリプタヒープ作成
@@ -485,7 +485,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
 		{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }, // 座標
 		{ "NORMAL",   0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }, // 法線
 		{ "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT,    0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }, // uv
-		{ "BONE_NO",  0, DXGI_FORMAT_R16G16_FLOAT,    0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }, // ボーン番号
+		{ "BONE_NO",  0, DXGI_FORMAT_R16G16_UINT,     0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }, // ボーン番号
 		{ "WEIGHT",   0, DXGI_FORMAT_R8_UINT,         0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }, // ウェイト
 	};
 
@@ -671,14 +671,14 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
 
 		auto dsvH = dsvHeap->GetCPUDescriptorHandleForHeapStart();
 
-		_cmdList->OMSetRenderTargets(1, &rtvH, true, &dsvH);
+		_cmdList->OMSetRenderTargets(1, &rtvH, false, &dsvH);
 
 		// レンダーターゲットのクリア
 		float clearColor[4]{ 1.0f, 1.0f, 1.0f, 1.0f }; // 背景色（今は黄色）
 		_cmdList->ClearRenderTargetView(rtvH, clearColor, 0, nullptr);
 
 		// 深度バッファーのクリア
-		_cmdList->ClearDepthStencilView(dsvH, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0.0f, 0, nullptr);
+		_cmdList->ClearDepthStencilView(dsvH, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
 
 		// ビューポートをセット
 		_cmdList->RSSetViewports(1, &viewport);
@@ -688,9 +688,6 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
 
 		// パイプラインをセット
 		_cmdList->SetPipelineState(_pipelineState.Get());
-
-		// ルートシグネチャをセット
-		_cmdList->SetGraphicsRootSignature(rootSignature.Get());
 
 		// プリミティブトポロジをセット
 		_cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
