@@ -874,9 +874,6 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
 		// インデックスバッファをセット
 		_cmdList->IASetIndexBuffer(&ibView);
 
-		// ルートシグネチャをセット
-		_cmdList->SetGraphicsRootSignature(rootSignature.Get());
-
 		// ディスクリプタヒープをセット
 		_cmdList->SetDescriptorHeaps(1, basicDescHeap.GetAddressOf());
 

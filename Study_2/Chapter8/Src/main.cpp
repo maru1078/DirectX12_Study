@@ -398,8 +398,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
 	}
 
 	// マテリアルバッファー作成
-	auto materialBuffSize = sizeof(MaterialForHlsl);
-	materialBuffSize = (materialBuffSize + 0xff) & ~0xff;
+	auto materialBuffSize = (sizeof(MaterialForHlsl) + 0xff) & ~0xff;
 
 	ComPtr<ID3D12Resource> materialBuff{ nullptr };
 	result = _dev->CreateCommittedResource(
@@ -570,11 +569,9 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
 	D3D12_DESCRIPTOR_HEAP_DESC descHeapDesc{};
 	descHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE; // シェーダーから見えるように
 	descHeapDesc.NodeMask = 0; // マスクは0
-	descHeapDesc.NumDescriptors = 2; // SRV, CBV
-	descHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV; // シェーダーリソースビュー用
+	descHeapDesc.NumDescriptors = 1; // CBV
+	descHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
 	result = _dev->CreateDescriptorHeap(&descHeapDesc, IID_PPV_ARGS(basicDescHeap.ReleaseAndGetAddressOf()));
-
-	auto basicHeapHandle = basicDescHeap->GetCPUDescriptorHandleForHeapStart();
 
 	// カメラ情報の設定
 	struct MatricesData
@@ -619,7 +616,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
 	// 定数バッファビュー作成
 	_dev->CreateConstantBufferView(
 		&cbvDesc,
-		basicHeapHandle);
+		basicDescHeap->GetCPUDescriptorHandleForHeapStart());
 
 	// レンジの作成
 	D3D12_DESCRIPTOR_RANGE range[2]{};
@@ -814,6 +811,9 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
 		// パイプラインをセット
 		_cmdList->SetPipelineState(_pipelineState.Get());
 
+		// ルートシグネチャをセット
+		_cmdList->SetGraphicsRootSignature(rootSignature.Get());
+
 		// プリミティブトポロジをセット
 		_cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
@@ -823,9 +823,6 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
 		// インデックスバッファをセット
 		_cmdList->IASetIndexBuffer(&ibView);
 
-		// ルートシグネチャをセット
-		_cmdList->SetGraphicsRootSignature(rootSignature.Get());
-
 		// ディスクリプタヒープをセット（変換行列用）
 		_cmdList->SetDescriptorHeaps(1, basicDescHeap.GetAddressOf());
 
@@ -834,13 +831,13 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
 			0, // ルートパラメーターインデックス
 			basicDescHeap->GetGPUDescriptorHandleForHeapStart()); // ヒープアドレス
 
-		// ディスクリプタヒープをセット（マテリアル用）
-		_cmdList->SetDescriptorHeaps(1, materialDescHeap.GetAddressOf());
+		//// ディスクリプタヒープをセット（マテリアル用）
+		//_cmdList->SetDescriptorHeaps(1, materialDescHeap.GetAddressOf());
 
-		// ルートパラメーターとディスクリプタヒープの関連付け（マテリアル用）
-		_cmdList->SetGraphicsRootDescriptorTable(
-			1,
-			materialDescHeap->GetGPUDescriptorHandleForHeapStart());
+		//// ルートパラメーターとディスクリプタヒープの関連付け（マテリアル用）
+		//_cmdList->SetGraphicsRootDescriptorTable(
+		//	1,
+		//	materialDescHeap->GetGPUDescriptorHandleForHeapStart());
 
 		// ドローコール
 		_cmdList->DrawIndexedInstanced(indicesNum, 1, 0, 0, 0);
