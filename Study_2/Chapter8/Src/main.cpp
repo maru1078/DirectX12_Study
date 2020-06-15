@@ -141,6 +141,39 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
 	ComPtr<IDXGIFactory6>   _dxgiFactory{ nullptr };
 	ComPtr<IDXGISwapChain4> _swapChain{ nullptr };
 
+	// ファクトリーの作成
+#ifdef _DEBUG
+
+	// DXGI関係のエラーメッセージを表示できる
+	auto result = CreateDXGIFactory2(DXGI_CREATE_FACTORY_DEBUG, IID_PPV_ARGS(_dxgiFactory.ReleaseAndGetAddressOf()));
+
+#else
+
+	auto result = CreateDXGIFactory1(IID_PPV_ARGS(_dxgiFactory.ReleaseAndGetAddressOf()));
+
+#endif
+
+	std::vector<ComPtr<IDXGIAdapter>> adapters;
+	ComPtr<IDXGIAdapter> tmpAdapter{ nullptr };
+
+	for (int i = 0; _dxgiFactory->EnumAdapters(i, tmpAdapter.ReleaseAndGetAddressOf()) != DXGI_ERROR_NOT_FOUND; ++i)
+	{
+		adapters.push_back(tmpAdapter);
+	}
+
+	for (auto adpt : adapters)
+	{
+		DXGI_ADAPTER_DESC adesc{};
+		adpt->GetDesc(&adesc);
+		std::wstring strDesc = adesc.Description;
+
+		if (strDesc.find(L"NVIDIA") != std::string::npos)
+		{
+			tmpAdapter = adpt;
+			break;
+		}
+	}
+
 	// Direct3Dデバイスの初期化
 	D3D_FEATURE_LEVEL levels[] =
 	{
@@ -154,24 +187,16 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
 
 	for (auto lv : levels)
 	{
-		if (D3D12CreateDevice(nullptr, lv, IID_PPV_ARGS(_dev.ReleaseAndGetAddressOf())))
+		// 第1引数をnullptrにするとダメ。
+		// Intel(R) UHD Graphics 630でもうまくいかない。モデルが消える
+		// 今回は "NVIDIA" がつくアダプターを指定。
+		if (D3D12CreateDevice(tmpAdapter.Get(), lv, IID_PPV_ARGS(_dev.ReleaseAndGetAddressOf())) == S_OK)
 		{
 			featureLevel = lv;
 			break; // 生成可能なバージョンが見つかったらループを打ち切り
 		}
 	}
 
-	// ファクトリーの作成
-#ifdef _DEBUG
-
-	// DXGI関係のエラーメッセージを表示できる
-	auto result = CreateDXGIFactory2(DXGI_CREATE_FACTORY_DEBUG, IID_PPV_ARGS(_dxgiFactory.ReleaseAndGetAddressOf()));
-
-#else
-
-	auto result = CreateDXGIFactory1(IID_PPV_ARGS(_dxgiFactory.ReleaseAndGetAddressOf()));
-
-#endif
 	ComPtr<ID3D12CommandAllocator>    _cmdAllocator{ nullptr };
 	ComPtr<ID3D12GraphicsCommandList> _cmdList{ nullptr };
 	ComPtr<ID3D12CommandQueue>        _cmdQueue{ nullptr };
@@ -291,6 +316,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
 	dsvDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D; // 2Dテクスチャ
 	dsvDesc.Flags = D3D12_DSV_FLAG_NONE; // フラグは特になし
 	_dev->CreateDepthStencilView(depthBuffer.Get(), &dsvDesc, dsvHeap->GetCPUDescriptorHandleForHeapStart());
+
 
 	// PMDデータ
 	struct PMDHeader
@@ -457,7 +483,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
 
 	unsigned char* vertMap{ nullptr };
 	result = vertBuff->Map(0, nullptr, (void**)&vertMap);
-	std::copy(std::begin(vertices), std::end(vertices), vertMap);
+	std::copy(vertices.begin(), vertices.end(), vertMap);
 	vertBuff->Unmap(0, nullptr);
 
 	D3D12_VERTEX_BUFFER_VIEW vbView{};
@@ -483,7 +509,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
 	// 作ったバッファーにインデックスデータをコピー
 	unsigned short* mappedIdx{ nullptr };
 	result = idxBuff->Map(0, nullptr, (void**)&mappedIdx);
-	std::copy(std::begin(indices), std::end(indices), mappedIdx);
+	std::copy(indices.begin(), indices.end(), mappedIdx);
 	idxBuff->Unmap(0, nullptr);
 
 	ComPtr<ID3DBlob> vsBlob{ nullptr };
@@ -608,6 +634,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
 	result = constBuff->Map(0, nullptr, (void**)&mapMat); // マップ
 	mapMat->world = worldMat; // 行列の内容をコピー
 	mapMat->viewproj = viewMat * projMat;
+	constBuff->Unmap(0, nullptr);
 
 	D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc{};
 	cbvDesc.BufferLocation = constBuff->GetGPUVirtualAddress();
@@ -799,7 +826,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
 		float clearColor[4]{ 1.0f, 1.0f, 1.0f, 1.0f }; // 背景色（今は黄色）
 		_cmdList->ClearRenderTargetView(rtvH, clearColor, 0, nullptr);
 
-		// 深度バッファーのクリア
+		// 深度のクリア
 		_cmdList->ClearDepthStencilView(dsvH, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0.0f, 0, nullptr);
 
 		// ビューポートをセット
@@ -831,13 +858,13 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
 			0, // ルートパラメーターインデックス
 			basicDescHeap->GetGPUDescriptorHandleForHeapStart()); // ヒープアドレス
 
-		//// ディスクリプタヒープをセット（マテリアル用）
-		//_cmdList->SetDescriptorHeaps(1, materialDescHeap.GetAddressOf());
+		// ディスクリプタヒープをセット（マテリアル用）
+		_cmdList->SetDescriptorHeaps(1, materialDescHeap.GetAddressOf());
 
-		//// ルートパラメーターとディスクリプタヒープの関連付け（マテリアル用）
-		//_cmdList->SetGraphicsRootDescriptorTable(
-		//	1,
-		//	materialDescHeap->GetGPUDescriptorHandleForHeapStart());
+		// ルートパラメーターとディスクリプタヒープの関連付け（マテリアル用）
+		_cmdList->SetGraphicsRootDescriptorTable(
+			1,
+			materialDescHeap->GetGPUDescriptorHandleForHeapStart());
 
 		// ドローコール
 		_cmdList->DrawIndexedInstanced(indicesNum, 1, 0, 0, 0);
