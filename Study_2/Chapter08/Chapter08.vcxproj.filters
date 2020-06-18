@@ -20,8 +20,8 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <FxCompile Include="Shader\BasicVertexShader.hlsl" />
     <FxCompile Include="Shader\BasicPixelShader.hlsl" />
+    <FxCompile Include="Shader\BasicVertexShader.hlsl" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Shader\BasicShaderHeader.hlsli" />
