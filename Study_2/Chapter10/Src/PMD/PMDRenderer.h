@@ -27,13 +27,12 @@ public:
 private:
 
 	std::weak_ptr<Dx12Wrapper> m_dx12;
-	std::vector<PMDActor*> m_pmdActors;
 
-	ComPtr<ID3DBlob> vsBlob{ nullptr };
-	ComPtr<ID3DBlob> psBlob{ nullptr };
-	ComPtr<ID3DBlob> errorBlob{ nullptr };
-	ComPtr<ID3D12RootSignature> rootSignature{ nullptr };
-	ComPtr<ID3D12PipelineState> _pipelineState{ nullptr };
+	ComPtr<ID3DBlob> m_vsBlob{ nullptr };
+	ComPtr<ID3DBlob> m_psBlob{ nullptr };
+	ComPtr<ID3DBlob> m_errorBlob{ nullptr };
+	ComPtr<ID3D12RootSignature> m_rootSignature{ nullptr };
+	ComPtr<ID3D12PipelineState> m_pipelineState{ nullptr };
 };
 
 #endif // !PMD_RENDERER_H_
