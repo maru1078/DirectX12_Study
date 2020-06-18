@@ -1225,7 +1225,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
 	// テクスチャ用1つ目
 	range[2].NumDescriptors = 4; // 通常テクスチャ、sph、spa、トゥーン
 	range[2].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV; // 定数
-	range[2].BaseShaderRegister = 0; // 1番スロットから
+	range[2].BaseShaderRegister = 0; // 0番スロットから
 	range[2].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
 
 	// ルートパラメーター作成
