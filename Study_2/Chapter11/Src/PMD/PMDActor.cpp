@@ -179,7 +179,7 @@ void PMDActor::MotionUpdate()
 
 	RecursiveMatrixMultiply(&m_boneNodeTable["センター"], XMMatrixIdentity());
 
-	IKSolve();
+	IKSolve(frameNo);
 
 	std::copy(m_boneMatrices.begin(), m_boneMatrices.end(), m_mappedMatrices + 1);
 }
@@ -502,6 +502,15 @@ bool PMDActor::LoadVMDFile(const std::string & filePath)
 	FILE* fp;
 	unsigned int motionDataNum;
 	std::vector<VMDMotion> vmdMotionData;
+	uint32_t morphCount = 0;
+	std::vector<VMDMorph> morphs;
+	uint32_t vmdCameraCount = 0;
+	std::vector<VMDCamera> cameraData;
+	uint32_t vmdLightCount = 0;
+	std::vector<VMDLight> lights;
+	uint32_t selfShadowCount = 0;
+	std::vector<VMDSelfShadow> selfShadowData;
+	uint32_t ikSwitchCount = 0; // IKオン/オフの切り替わり
 
 	fopen_s(&fp, filePath.c_str(), "rb");
 	fseek(fp, 50, SEEK_SET); // 最初の50バイトは飛ばす
@@ -520,6 +529,51 @@ bool PMDActor::LoadVMDFile(const std::string & filePath)
 			1, fp);
 
 		m_duration = std::max<unsigned int>(m_duration, motion.frameNo);
+	}
+
+	fread(&morphCount, sizeof(morphCount), 1, fp);
+	morphs.resize(morphCount);
+	fread(morphs.data(), sizeof(VMDMorph), morphs.size(), fp);
+
+	fread(&vmdCameraCount, sizeof(vmdCameraCount), 1, fp);
+	cameraData.resize(vmdCameraCount);
+	fread(cameraData.data(), sizeof(VMDCamera), cameraData.size(), fp);
+
+	fread(&vmdLightCount, sizeof(vmdLightCount), 1, fp);
+	lights.resize(vmdLightCount);
+	fread(lights.data(), sizeof(VMDCamera), lights.size(), fp);
+
+	fread(&selfShadowCount, sizeof(selfShadowCount), 1, fp);
+	selfShadowData.resize(selfShadowCount);
+	fread(selfShadowData.data(), sizeof(VMDSelfShadow), selfShadowData.size(), fp);
+
+	fread(&ikSwitchCount, sizeof(ikSwitchCount), 1, fp);
+	m_ikEnableData.resize(ikSwitchCount);
+
+	for (auto& ikEnable : m_ikEnableData)
+	{
+		// キーフレーム情報なのでまずはフレーム番号読み込み
+		fread(&ikEnable.frameNo, sizeof(ikEnable.frameNo), 1, fp);
+
+		// 次に可視フラグがあるが、これは使用しないため
+		// 1バイトシークでも構わない
+		uint8_t visibleFlg = 0;
+		fread(&visibleFlg, sizeof(visibleFlg), 1, fp);
+
+		// 対象ボーン数読み込み
+		uint32_t ikBoneCount = 0;
+		fread(&ikBoneCount, sizeof(ikBoneCount), 1, fp);
+
+		// ループしつつ名前とON/OFF情報を取得
+		for (int i = 0; i < ikBoneCount; ++i)
+		{
+			char ikBoneName[20];
+			fread(ikBoneName, _countof(ikBoneName), 1, fp);
+
+			uint8_t flg = 0;
+			fread(&flg, sizeof(flg), 1, fp);
+			ikEnable.ikEnableTable[ikBoneName] = flg;
+		}
 	}
 
 	fclose(fp);
@@ -1068,10 +1122,31 @@ void PMDActor::SolveLookAt(const PMDIK & ik)
 	m_boneMatrices[ik.nodeIdxes[0]] = LookAtMatrix(originVec, targetVec, XMFLOAT3(0, 1, 0), XMFLOAT3(1, 0, 0));
 }
 
-void PMDActor::IKSolve()
+void PMDActor::IKSolve(int frameNo)
 {
+	// 前にも行ったように、IKオン/オフ情報をフレーム番号で逆から検索
+	auto it = std::find_if(m_ikEnableData.rbegin(), m_ikEnableData.rend(),
+		[frameNo](const VMDIKEnable& ikenable)
+	{
+		return ikenable.frameNo <= frameNo;
+	});
+
 	for (auto& ik : m_pmdIkData)
 	{
+		if (it != m_ikEnableData.rend())
+		{
+			auto ikEnableIt = it->ikEnableTable.find(m_boneNameArray[ik.boneIdx]);
+
+			if (ikEnableIt != it->ikEnableTable.end())
+			{
+				// もしIKがオフなら打ち切る
+				if (!ikEnableIt->second)
+				{
+					continue;
+				}
+			}
+		}
+
 		auto childrenNodesCount = ik.nodeIdxes.size();
 
 		switch (childrenNodesCount)

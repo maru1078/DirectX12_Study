@@ -76,6 +76,22 @@ namespace
 		XMFLOAT3 pos;            // ボーンの基準点座標
 	};
 
+	// 表情データ（頂点モーフデータ）
+	struct VMDMorph
+	{
+		char name[15];    // 名前（パディングしてしまう）
+		uint32_t frameNo; // フレーム番号
+		float weight;     // ウェイト（0.0f～1.0f）
+	};
+
+	// セルフ影データ
+	struct VMDSelfShadow
+	{
+		uint32_t frameNo; // フレーム番号
+		uint8_t mode;     // 影モード（0:影なし, 1:モード1, 2:モード2
+		float distance;   // 距離
+	};
+
 #pragma pack()
 
 	// シェーダー側に投げられるマテリアルデータ
@@ -148,6 +164,35 @@ namespace
 		std::vector<uint16_t> nodeIdxes; // 間のノード番号
 	};
 
+	// カメラ
+	struct VMDCamera
+	{
+		uint32_t frameNo;          // フレーム番号
+		float distance;            // 距離
+		XMFLOAT3 pos;              // 座標
+		XMFLOAT3 eulerAngle;       // オイラー角
+		uint8_t interpolation[24]; // 補間
+		uint32_t fov;              // 視野角
+		uint8_t persFlg;           // パースフラグON/OFF
+	};
+
+	// ライト証明データ
+	struct VMDLight
+	{
+		uint32_t frameNo; // フレーム番号
+		XMFLOAT3 rgb;     // ライト色
+		XMFLOAT3 vec;     // 光線ベクトル
+	};
+
+	// IKオン/オフデータ
+	struct VMDIKEnable
+	{
+		// キーフレームがあるフレーム番号
+		uint32_t frameNo;
+
+		// 名前とオン/オフフラグのマップ
+		std::unordered_map<std::string, bool> ikEnableTable;
+	};
 }
 
 class PMDActor
@@ -189,7 +234,7 @@ private:
 	// @param ik 対象IKオブジェクト
 	void SolveLookAt(const PMDIK& ik);
 
-	void IKSolve();
+	void IKSolve(int frameNo);
 
 private:
 
@@ -234,6 +279,8 @@ private:
 
 	std::vector<PMDIK> m_pmdIkData;
 	std::vector<uint32_t> m_kneeIdxes;
+
+	std::vector<VMDIKEnable> m_ikEnableData;
 };
 
 #endif // !PMD_ACTOR_H_
