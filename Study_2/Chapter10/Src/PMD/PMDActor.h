@@ -110,10 +110,13 @@ struct Motion
 {
 	unsigned int frameNo;
 	XMVECTOR quaternion;
+	XMFLOAT2 p1, p2;
 
-	Motion(unsigned int fno, const XMVECTOR& q)
+	Motion(unsigned int fno, const XMVECTOR& q, const XMFLOAT2& ip1, const XMFLOAT2& ip2)
 		: frameNo{ fno }
 		, quaternion{ q }
+		, p1{ ip1 }
+		, p2{ ip2 }
 	{}
 };
 
@@ -142,6 +145,7 @@ private:
 	bool CreateTransformBufferView();
 
 	void RecursiveMatrixMultiply(BoneNode* node, const XMMATRIX& mat);
+	float GetYFromXOnBezier(float x, const XMFLOAT2& a, const XMFLOAT2& b, uint8_t n);
 
 private:
 
@@ -176,6 +180,7 @@ private:
 
 	std::unordered_map<std::string, std::vector<Motion>> m_motionData;
 	DWORD m_startTime; // アニメーション開始時のミリ秒
+	unsigned int m_duration{ 0 };
 };
 
 #endif // !PMD_ACTOR_H_

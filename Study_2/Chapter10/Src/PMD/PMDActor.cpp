@@ -56,6 +56,13 @@ void PMDActor::MotionUpdate()
 	auto elaspedTime = timeGetTime() - m_startTime;
 	unsigned int frameNo = 30 * (elaspedTime / 1000.0f);
 
+	// ここからループのための追加コード
+	if (frameNo > m_duration)
+	{
+		m_startTime = timeGetTime();
+		frameNo = 0;
+	}
+
 	// 行列情報のクリア
 	std::fill(m_boneMatrices.begin(), m_boneMatrices.end(), XMMatrixIdentity());
 
@@ -94,6 +101,8 @@ void PMDActor::MotionUpdate()
 		{
 			auto t = static_cast<float>(frameNo - rit->frameNo)
 				/ static_cast<float>(it->frameNo - rit->frameNo);
+
+			t = GetYFromXOnBezier(t, it->p1, it->p2, 12);
 
 			rotation = XMMatrixRotationQuaternion(
 				XMQuaternionSlerp(rit->quaternion, it->quaternion, t));
@@ -373,6 +382,8 @@ bool PMDActor::LoadVMDFile(const std::string & filePath)
 			+ sizeof(motion.quaternion) // クォータニオン
 			+ sizeof(motion.bezier),	// 補間ベジェデータ
 			1, fp);
+
+		m_duration = std::max<unsigned int>(m_duration, motion.frameNo);
 	}
 
 	// VMDモーションデータから、実際に使用するモーションテーブルへ変換
@@ -380,7 +391,9 @@ bool PMDActor::LoadVMDFile(const std::string & filePath)
 	{
 		m_motionData[vmdMotion.boneName].emplace_back(
 			Motion(vmdMotion.frameNo,
-				XMLoadFloat4(&vmdMotion.quaternion)));
+				XMLoadFloat4(&vmdMotion.quaternion),
+				XMFLOAT2((float)vmdMotion.bezier[3] / 127.0f, (float)vmdMotion.bezier[7] / 127.0f),
+				XMFLOAT2((float)vmdMotion.bezier[11] / 127.0f, (float)vmdMotion.bezier[15] / 127.0f)));
 	}
 
 	// フレーム番号によるソート
@@ -665,4 +678,40 @@ void PMDActor::RecursiveMatrixMultiply(BoneNode * node, const XMMATRIX & mat)
 	{
 		RecursiveMatrixMultiply(cnode, m_boneMatrices[node->boneIdx]);
 	}
+}
+
+float PMDActor::GetYFromXOnBezier(float x, const XMFLOAT2 & a, const XMFLOAT2 & b, uint8_t n)
+{
+	if (a.x == a.y && b.x == b.y)
+	{
+		return x; // 計算不要
+	}
+
+	float t = x;
+	const float k0 = 1 + 3 * a.x - 3 * b.x; // t^3の係数
+	const float k1 = 3 * b.x - 6 * a.x;     // t^2の係数
+	const float k2 = 3 * a.x;               // t  の係数
+
+	// 誤差の範囲内かどうかに使用する定数
+	constexpr float epsilon = 0.0005f;
+
+	// tを近似で求める
+	for (int i = 0; i < n; ++i)
+	{
+		// f(t)を求める
+		auto ft = (k0 * t * t * t) + (k1 * t * t) + (k2 * t) - x;
+
+		// もし結果が0に近い（誤差の範囲内）なら打ち切る
+		if (ft <= epsilon && ft >= -epsilon)
+		{
+			break;
+		}
+
+		t -= ft / 2; // 刻む
+	}
+
+	// 求めたいtはすでに求めているのでyを計算する
+	auto r = 1 - t;
+
+	return (t * t * t) + (3 * t * t * r * b.y) + (3 * t * r * r * a.y);
 }
