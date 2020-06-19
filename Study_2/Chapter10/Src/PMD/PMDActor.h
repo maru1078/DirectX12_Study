@@ -3,6 +3,7 @@
 
 #include <memory>
 #include <map>
+#include <unordered_map>
 #include <string>
 #include <vector>
 #include <d3d12.h>
@@ -96,6 +97,26 @@ struct BoneNode
 	std::vector<BoneNode*> children; // 子ノード
 };
 
+struct VMDMotion
+{
+	char boneName[15];		  // ボーン名
+	unsigned int frameNo;	  // フレーム番号
+	XMFLOAT3 location;		  // 位置
+	XMFLOAT4 quaternion;	  // クォータニオン（回転）
+	unsigned char bezier[64]; // [4][4][4]ベジェ補間パラメーター
+};
+
+struct Motion
+{
+	unsigned int frameNo;
+	XMVECTOR quaternion;
+
+	Motion(unsigned int fno, const XMVECTOR& q)
+		: frameNo{ fno }
+		, quaternion{ q }
+	{}
+};
+
 class PMDActor
 {
 public:
@@ -104,12 +125,15 @@ public:
 		std::weak_ptr<Dx12Wrapper> dx12,
 		XMFLOAT3 pos = { 0.0f, 0.0f, 0.0f });
 
+	void PlayAnimation();
+	void MotionUpdate();
 	void Update();
 	void Draw();
 
 private:
 
 	bool LoadPMDFile(const std::string& filePath);
+	bool LoadVMDFile(const std::string& filePath);
 	bool CreateMaterialBuffer();
 	bool CreateMaterialBufferView();
 	bool CreateVertexBuffer();
@@ -117,13 +141,9 @@ private:
 	bool CreateTransformBuffer();
 	bool CreateTransformBufferView();
 
-private:
+	void RecursiveMatrixMultiply(BoneNode* node, const XMMATRIX& mat);
 
-	struct Transform
-	{
-		void* operator new(size_t size);
-		XMMATRIX world;
-	};
+private:
 
 	XMFLOAT3 m_pos{ 0.0f, 0.0f, 0.0f };
 	float m_angle{ 0.0f };
@@ -147,12 +167,15 @@ private:
 
 	ComPtr<ID3D12DescriptorHeap> m_materialDescHeap{ nullptr };
 
-	Transform* m_mapTransform{ nullptr };
+	XMMATRIX* m_mappedMatrices{ nullptr };
 	ComPtr<ID3D12Resource> m_transformBuffer{ nullptr };
 	ComPtr<ID3D12DescriptorHeap> m_transformHeap{ nullptr };
 	
 	std::vector<XMMATRIX> m_boneMatrices;
 	std::map<std::string, BoneNode> m_boneNodeTable;
+
+	std::unordered_map<std::string, std::vector<Motion>> m_motionData;
+	DWORD m_startTime; // アニメーション開始時のミリ秒
 };
 
 #endif // !PMD_ACTOR_H_

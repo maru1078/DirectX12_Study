@@ -1,13 +1,20 @@
 #include "PMDActor.h"
 
+#include <algorithm>
 #include "../Dx12Wrapper/Dx12Wrapper.h"
 #include "../Helper/Helper.h"
+
+#pragma comment(lib, "winmm.lib") // timeGetTime()を呼ぶのに必要
 
 PMDActor::PMDActor(const std::string & filePath, std::weak_ptr<Dx12Wrapper> dx12, XMFLOAT3 pos)
 	: m_dx12{ dx12 }
 	, m_pos{ pos }
 {
 	if (!LoadPMDFile(filePath))
+	{
+		assert(0);
+	}
+	if (!LoadVMDFile("Motion/motion.vmd"))
 	{
 		assert(0);
 	}
@@ -35,12 +42,85 @@ PMDActor::PMDActor(const std::string & filePath, std::weak_ptr<Dx12Wrapper> dx12
 	{
 		assert(0);
 	}
+
+	PlayAnimation();
+}
+
+void PMDActor::PlayAnimation()
+{
+	m_startTime = timeGetTime();
+}
+
+void PMDActor::MotionUpdate()
+{
+	auto elaspedTime = timeGetTime() - m_startTime;
+	unsigned int frameNo = 30 * (elaspedTime / 1000.0f);
+
+	// 行列情報のクリア
+	std::fill(m_boneMatrices.begin(), m_boneMatrices.end(), XMMatrixIdentity());
+
+	// モーションデータ更新
+	for (auto& boneMotion : m_motionData)
+	{
+		// モデルデータ側に存在しているボーンかどうか調べる
+		auto itBoneNode = m_boneNodeTable.find(boneMotion.first);
+		
+		// 存在していなかった場合、処理を飛ばす
+		if (itBoneNode == m_boneNodeTable.end())
+		{
+			continue;
+		}
+
+		auto node = itBoneNode->second;
+
+		// 合致するものを探す
+		auto motions = boneMotion.second;
+		auto rit = std::find_if(motions.rbegin(), motions.rend(), 
+			[frameNo](const Motion& motion)
+		{
+			return motion.frameNo <= frameNo;
+		});
+
+		// 合致するものがなければ処理を飛ばす
+		if (rit == motions.rend())
+		{
+			continue;
+		}
+
+		XMMATRIX rotation;
+		auto it = rit.base();
+
+		if (it != motions.end())
+		{
+			auto t = static_cast<float>(frameNo - rit->frameNo)
+				/ static_cast<float>(it->frameNo - rit->frameNo);
+
+			rotation = XMMatrixRotationQuaternion(
+				XMQuaternionSlerp(rit->quaternion, it->quaternion, t));
+		}
+		else
+		{
+			rotation = XMMatrixRotationQuaternion(rit->quaternion);
+		}
+
+		auto& pos = node.startPos;
+		auto mat = XMMatrixTranslation(-pos.x, -pos.y, -pos.z)
+			* rotation
+			* XMMatrixTranslation(pos.x, pos.y, pos.z);
+
+		m_boneMatrices[node.boneIdx] = mat;
+	}
+
+	RecursiveMatrixMultiply(&m_boneNodeTable["センター"], XMMatrixIdentity());
+	std::copy(m_boneMatrices.begin(), m_boneMatrices.end(), m_mappedMatrices + 1);
 }
 
 void PMDActor::Update()
 {
-	m_angle += 0.01f;
-	m_mapTransform->world = XMMatrixTranslation(m_pos.x, m_pos.y, m_pos.z)
+	MotionUpdate();
+
+	//m_angle += 0.01f;
+	m_mappedMatrices[0] = XMMatrixTranslation(m_pos.x, m_pos.y, m_pos.z)
 		* XMMatrixRotationY(m_angle);
 }
 
@@ -272,6 +352,50 @@ bool PMDActor::LoadPMDFile(const std::string & filePath)
 	return true;
 }
 
+bool PMDActor::LoadVMDFile(const std::string & filePath)
+{
+	FILE* fp;
+	unsigned int motionDataNum;
+	std::vector<VMDMotion> vmdMotionData;
+
+	fopen_s(&fp, filePath.c_str(), "rb");
+	fseek(fp, 50, SEEK_SET); // 最初の50バイトは飛ばす
+
+	fread(&motionDataNum, sizeof(motionDataNum), 1, fp);
+	vmdMotionData.resize(motionDataNum);
+
+	for (auto& motion : vmdMotionData)
+	{
+		fread(motion.boneName, sizeof(motion.boneName), 1, fp); // ボーン名
+		fread(&motion.frameNo,
+			sizeof(motion.frameNo)		// フレーム番号
+			+ sizeof(motion.location)	// 位置
+			+ sizeof(motion.quaternion) // クォータニオン
+			+ sizeof(motion.bezier),	// 補間ベジェデータ
+			1, fp);
+	}
+
+	// VMDモーションデータから、実際に使用するモーションテーブルへ変換
+	for (auto& vmdMotion : vmdMotionData)
+	{
+		m_motionData[vmdMotion.boneName].emplace_back(
+			Motion(vmdMotion.frameNo,
+				XMLoadFloat4(&vmdMotion.quaternion)));
+	}
+
+	// フレーム番号によるソート
+	for (auto& motion : m_motionData)
+	{
+		std::sort(motion.second.begin(), motion.second.end(),
+			[](const Motion& lval, const Motion& rval)
+		{
+			return lval.frameNo <= rval.frameNo;
+		});
+	}
+
+	return true;
+}
+
 bool PMDActor::CreateMaterialBuffer()
 {
 	// マテリアルバッファー作成
@@ -489,11 +613,14 @@ bool PMDActor::CreateTransformBuffer()
 
 	if (FAILED(result)) return false;
 
+	auto buffSize = sizeof(XMMATRIX) * (1 + m_boneMatrices.size());
+	buffSize = (buffSize + 0xff) & ~0xff;
+
 	// 定数バッファ作成
 	result = m_dx12.lock()->Device()->CreateCommittedResource(
 		&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
 		D3D12_HEAP_FLAG_NONE,
-		&CD3DX12_RESOURCE_DESC::Buffer((sizeof(Transform) + 0xff) & ~0xff),
+		&CD3DX12_RESOURCE_DESC::Buffer(buffSize),
 		D3D12_RESOURCE_STATE_GENERIC_READ,
 		nullptr,
 		IID_PPV_ARGS(m_transformBuffer.ReleaseAndGetAddressOf()));
@@ -501,11 +628,12 @@ bool PMDActor::CreateTransformBuffer()
 	if (FAILED(result)) return false;
 
 	// マップ
-	result = m_transformBuffer->Map(0, nullptr, (void**)&m_mapTransform);
+	result = m_transformBuffer->Map(0, nullptr, (void**)&m_mappedMatrices);
 
 	if (FAILED(result)) return false;
 
-	m_mapTransform->world = XMMatrixTranslation(m_pos.x, m_pos.y, m_pos.z);
+	m_mappedMatrices[0] = XMMatrixTranslation(m_pos.x, m_pos.y, m_pos.z);
+	std::copy(m_boneMatrices.begin(), m_boneMatrices.end(), m_mappedMatrices + 1);
 
 	m_transformBuffer->Unmap(0, nullptr);
 
@@ -514,9 +642,12 @@ bool PMDActor::CreateTransformBuffer()
 
 bool PMDActor::CreateTransformBufferView()
 {
+	auto buffSize = sizeof(XMMATRIX) * (1 + m_boneMatrices.size());
+	buffSize = (buffSize + 0xff) & ~0xff;
+
 	D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc{};
 	cbvDesc.BufferLocation = m_transformBuffer->GetGPUVirtualAddress();
-	cbvDesc.SizeInBytes = (sizeof(Transform) + 0xff) & ~0xff;
+	cbvDesc.SizeInBytes = buffSize;
 
 	// ビュー作成
 	m_dx12.lock()->Device()->CreateConstantBufferView(
@@ -526,7 +657,12 @@ bool PMDActor::CreateTransformBufferView()
 	return true;
 }
 
-void * PMDActor::Transform::operator new(size_t size)
+void PMDActor::RecursiveMatrixMultiply(BoneNode * node, const XMMATRIX & mat)
 {
-	return _aligned_malloc(size, 16);
+	m_boneMatrices[node->boneIdx] *= mat;
+
+	for (auto& cnode : node->children)
+	{
+		RecursiveMatrixMultiply(cnode, m_boneMatrices[node->boneIdx]);
+	}
 }
