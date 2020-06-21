@@ -239,6 +239,7 @@ void Dx12Wrapper::DrawPera2Polygon()
 	m_cmdList->OMSetRenderTargets(1, &rtvH, 0, nullptr);
 	m_cmdList->ClearRenderTargetView(rtvH, m_clearColor, 0, nullptr);
 
+	m_cmdList->SetDescriptorHeaps(1, m_peraRegisterHeap.GetAddressOf());
 	auto handle = m_peraRegisterHeap->GetGPUDescriptorHandleForHeapStart();
 	handle.ptr += m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 	m_cmdList->SetGraphicsRootDescriptorTable(0, handle);
@@ -564,6 +565,13 @@ bool Dx12Wrapper::CreateSceneView()
 	XMFLOAT3 up{ 0.0f, 1.0f, 0.0f };
 	XMFLOAT4 planeVec{ 0.0f, 1.0f, 0.0f, 0.0f };
 
+	XMVECTOR eyePos = XMLoadFloat3(&eye);
+	XMVECTOR targetPos = XMLoadFloat3(&target);
+	XMVECTOR upVec = XMLoadFloat3(&up);
+	XMVECTOR lightVec = -XMLoadFloat3(&m_parallelLightVec);
+	XMVECTOR lightPos = targetPos + XMVector3Normalize(lightVec)
+		* XMVector3Length(XMVectorSubtract(targetPos, eyePos)).m128_f32[0];
+
 	auto viewMat = XMMatrixLookAtLH(XMLoadFloat3(&eye), XMLoadFloat3(&target), XMLoadFloat3(&up));
 	auto projMat = XMMatrixPerspectiveFovLH(
 		XM_PIDIV4,
@@ -585,6 +593,7 @@ bool Dx12Wrapper::CreateSceneView()
 	result = m_constBuff->Map(0, nullptr, (void**)&m_mapMat); // ƒ}ƒbƒv
 	m_mapMat->view = viewMat;
 	m_mapMat->proj = projMat;
+	m_mapMat->lightCamera = XMMatrixLookAtLH(lightPos, targetPos, upVec) * XMMatrixOrthographicLH(40, 40, 1.0f, 100.0f);
 	m_mapMat->shadow = XMMatrixShadow(XMLoadFloat4(&planeVec), -XMLoadFloat3(&m_parallelLightVec));
 	m_constBuff->Unmap(0, nullptr);
 

@@ -20,10 +20,11 @@ using LoadLambda_t = std::function<HRESULT(const std::wstring& path, TexMetadata
 
 struct SceneMatrix
 {
-	XMMATRIX view;   // ビュー行列
-	XMMATRIX proj;   // プロジェクション行列
-	XMMATRIX shadow; // 影
-	XMFLOAT3 eye;    // 視点座標
+	XMMATRIX view;        // ビュー行列
+	XMMATRIX proj;        // プロジェクション行列
+	XMMATRIX lightCamera; // ライトから見たビュー
+	XMMATRIX shadow;      // 影
+	XMFLOAT3 eye;         // 視点座標
 };
 
 struct PeraVertex

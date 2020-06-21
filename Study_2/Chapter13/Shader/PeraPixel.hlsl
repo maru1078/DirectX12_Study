@@ -41,9 +41,11 @@ float4 PeraPS(Output input) : SV_TARGET
 	float dy = 1.0 / h;
 	float4 ret = float4(0, 0, 0, 0);
 
-	float dep = pow(depthTex.Sample(smp, input.uv), 20);
-	return float4(dep, dep, dep, 1.0);
-
+	// 深度表示
+	{
+		//float dep = pow(depthTex.Sample(smp, input.uv), 20);
+		//return float4(dep, dep, dep, 1.0);
+	}
 
 	// ガウシアンぼかし（本格版）
 	{

@@ -20,10 +20,11 @@ struct Output
 // 定数バッファ
 cbuffer cbuff0 : register(b0)
 {
-	matrix view;   // ビュー変換行列
-	matrix proj;   // プロジェクション変換行列
-	matrix shadow; // 影
-	float3 eye;    // 視点
+	matrix view;        // ビュー変換行列
+	matrix proj;        // プロジェクション変換行列
+	matrix lightCamera; // ライトビュープロジェクション
+	matrix shadow;      // 影
+	float3 eye;         // 視点
 };
 
 cbuffer Transform : register(b1)
