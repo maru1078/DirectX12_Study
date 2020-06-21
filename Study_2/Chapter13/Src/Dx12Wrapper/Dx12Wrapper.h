@@ -46,7 +46,7 @@ public:
 
 	void BeginDraw();
 	void SetSceneMat();
-	void DrawPeraPolygon();
+	void DrawPeraPolygon(bool isToBackBuffer = true);
 	void DrawPera2Polygon();
 	void EndDraw();
 	void WaitForCommandQueue();
@@ -70,6 +70,7 @@ private:
 	bool CreatePeraPipeline();
 	bool CreateBokehParamResouece();
 	bool CreateEffectBufferAndView();
+	bool CreateDepthSRVHeapAndView();
 	ComPtr<ID3D12Resource> LoadTextureFromFile(const std::string& texPath);
 
 private:
@@ -119,6 +120,8 @@ private:
 
 	// 平行ライトの向き
 	XMFLOAT3 m_parallelLightVec;
+	// 深度値テクスチャ用
+	ComPtr<ID3D12DescriptorHeap> m_depthSRVHeap{ nullptr };
 };
 
 #endif // !DX12_WRAPPER_H_

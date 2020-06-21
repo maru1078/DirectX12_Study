@@ -1,5 +1,6 @@
-Texture2D<float4> tex : register(t0); // 通常テクスチャ
+Texture2D<float4> tex       : register(t0); // 通常テクスチャ
 Texture2D<float4> effectTex : register(t1); // 歪み用法線マップ
+Texture2D<float> depthTex   : register(t2); // 深度テクスチャ
 SamplerState smp : register(s0); // サンプラー
 
 struct Output

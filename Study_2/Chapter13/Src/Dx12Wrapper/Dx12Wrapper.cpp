@@ -88,6 +88,10 @@ Dx12Wrapper::Dx12Wrapper()
 	{
 		assert(0);
 	}
+	if (!CreateDepthSRVHeapAndView())
+	{
+		assert(0);
+	}
 }
 
 // +-------------------------------+ //
@@ -164,7 +168,7 @@ void Dx12Wrapper::SetSceneMat()
 		m_basicDescHeap->GetGPUDescriptorHandleForHeapStart()); // ヒープアドレス
 }
 
-void Dx12Wrapper::DrawPeraPolygon()
+void Dx12Wrapper::DrawPeraPolygon(bool isToBackBuffer)
 {
 	m_cmdList->ResourceBarrier(
 		1, &CD3DX12_RESOURCE_BARRIER::Transition(
@@ -178,15 +182,18 @@ void Dx12Wrapper::DrawPeraPolygon()
 	auto rtvH = m_peraRTVHeap->GetCPUDescriptorHandleForHeapStart();
 	rtvH.ptr += m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 
-	// バックバッファ
-	auto backBuffRTVHandle = m_rtvHeaps->GetCPUDescriptorHandleForHeapStart();
-	backBuffRTVHandle.ptr += m_bbIdx * m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+	if (isToBackBuffer)
+	{
+		// バックバッファ
+		rtvH = m_rtvHeaps->GetCPUDescriptorHandleForHeapStart();
+		rtvH.ptr += m_bbIdx * m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+	}
 
 	// レンダーターゲットをセット
-	m_cmdList->OMSetRenderTargets(1, &backBuffRTVHandle, false, nullptr);
+	m_cmdList->OMSetRenderTargets(1, &rtvH, false, nullptr);
 
 	// レンダーターゲットのクリア
-	m_cmdList->ClearRenderTargetView(backBuffRTVHandle, m_clearColor, 0, nullptr);
+	m_cmdList->ClearRenderTargetView(rtvH, m_clearColor, 0, nullptr);
 
 	// ビューポートをセット
 	m_cmdList->RSSetViewports(1, &m_viewport);
@@ -208,6 +215,11 @@ void Dx12Wrapper::DrawPeraPolygon()
 	handle.ptr += m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 	handle.ptr += m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 	m_cmdList->SetGraphicsRootDescriptorTable(1, handle);
+
+	// 深度バッファテクスチャ
+	m_cmdList->SetDescriptorHeaps(1, m_depthSRVHeap.GetAddressOf());
+	m_cmdList->SetGraphicsRootDescriptorTable(3, 
+		m_depthSRVHeap->GetGPUDescriptorHandleForHeapStart());
 
 	m_cmdList->SetPipelineState(m_peraPipeline.Get());
 	m_cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
@@ -488,7 +500,7 @@ bool Dx12Wrapper::CreateDepthStencilView()
 	depthResDesc.Width = Application::Instance().WindowWidth();   // 幅と高さはレンダーターゲットと同じ
 	depthResDesc.Height = Application::Instance().WindowHeight(); // 
 	depthResDesc.DepthOrArraySize = 1;   // テクスチャ配列でも、3Dテクスチャでもない
-	depthResDesc.Format = DXGI_FORMAT_D32_FLOAT; // 深度値書き込み用フォーマット
+	depthResDesc.Format = DXGI_FORMAT_R32_TYPELESS; // 深度値書き込み用フォーマット
 	depthResDesc.SampleDesc.Count = 1;
 	depthResDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL; // デプスステンシルとして使用
 
@@ -891,7 +903,7 @@ bool Dx12Wrapper::CreatePeraPipeline()
 	if (FAILED(result)) return false;
 
 	// ディスクリプタレンジ
-	D3D12_DESCRIPTOR_RANGE range[3]{};
+	D3D12_DESCRIPTOR_RANGE range[4]{};
 	range[0].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV; // テクスチャ
 	range[0].BaseShaderRegister = 0; // 0番スロット
 	range[0].NumDescriptors = 1;
@@ -904,8 +916,13 @@ bool Dx12Wrapper::CreatePeraPipeline()
 	range[2].BaseShaderRegister = 1; // 1番スロット
 	range[2].NumDescriptors = 1;
 
+	// 深度テクスチャ用
+	range[3].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV; // テクスチャ
+	range[3].BaseShaderRegister = 2; // 2番スロット
+	range[3].NumDescriptors = 1;
+
 	// ルートパラメーター
-	D3D12_ROOT_PARAMETER rp[3]{};
+	D3D12_ROOT_PARAMETER rp[4]{};
 	rp[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
 	rp[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
 	rp[0].DescriptorTable.pDescriptorRanges = &range[0];
@@ -921,13 +938,19 @@ bool Dx12Wrapper::CreatePeraPipeline()
 	rp[2].DescriptorTable.pDescriptorRanges = &range[2];
 	rp[2].DescriptorTable.NumDescriptorRanges = 1;
 
+	// 深度テクスチャ用
+	rp[3].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+	rp[3].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+	rp[3].DescriptorTable.pDescriptorRanges = &range[3];
+	rp[3].DescriptorTable.NumDescriptorRanges = 1;
+
 	// サンプラー
 	D3D12_STATIC_SAMPLER_DESC sampler = CD3DX12_STATIC_SAMPLER_DESC(0); // 0番スロットのサンプラー
 
 	// ルートシグネチャ作成
 	D3D12_ROOT_SIGNATURE_DESC rsDesc{};
 	rsDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
-	rsDesc.NumParameters = 3;
+	rsDesc.NumParameters = _countof(rp);
 	rsDesc.pParameters = rp;
 	rsDesc.NumStaticSamplers = 1;
 	rsDesc.pStaticSamplers = &sampler;
@@ -1034,6 +1057,31 @@ bool Dx12Wrapper::CreateEffectBufferAndView()
 
 	m_device->CreateShaderResourceView(m_effectTexBuffer.Get(), &srvDesc,
 		m_effectSRVHeap->GetCPUDescriptorHandleForHeapStart());
+
+	return true;
+}
+
+bool Dx12Wrapper::CreateDepthSRVHeapAndView()
+{
+	// ヒープ作成
+	D3D12_DESCRIPTOR_HEAP_DESC heapDesc{};
+	heapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+	heapDesc.NodeMask = 0;
+	heapDesc.NumDescriptors = 1;
+	heapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+	auto result = m_device->CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(m_depthSRVHeap.ReleaseAndGetAddressOf()));
+
+	if (FAILED(result)) return false;
+
+	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc{};
+	srvDesc.Format = DXGI_FORMAT_R32_FLOAT;
+	srvDesc.Texture2D.MipLevels = 1;
+	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+	auto handle = m_depthSRVHeap->GetCPUDescriptorHandleForHeapStart();
+
+	m_device->CreateShaderResourceView(m_depthBuffer.Get(),
+		&srvDesc, handle);
 
 	return true;
 }
