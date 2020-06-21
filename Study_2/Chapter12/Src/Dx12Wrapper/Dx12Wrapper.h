@@ -68,7 +68,7 @@ private:
 	bool CreatePeraPolygon();
 	bool CreatePeraPipeline();
 	bool CreateBokehParamResouece();
-	bool CreatePeraResouece2();
+	bool CreateEffectBufferAndView();
 	ComPtr<ID3D12Resource> LoadTextureFromFile(const std::string& texPath);
 
 private:
@@ -111,6 +111,10 @@ private:
 	ComPtr<ID3D12Resource> m_bokehParamBuffer{ nullptr };
 	ComPtr<ID3D12Resource> m_peraResource2{ nullptr }; // ペラ2枚目
 	ComPtr<ID3D12PipelineState> m_pera2Pipeline{ nullptr };
+
+	// 歪みテクスチャ用
+	ComPtr<ID3D12DescriptorHeap> m_effectSRVHeap{ nullptr };
+	ComPtr<ID3D12Resource> m_effectTexBuffer{ nullptr };
 };
 
 #endif // !DX12_WRAPPER_H_

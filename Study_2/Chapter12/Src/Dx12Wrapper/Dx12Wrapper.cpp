@@ -25,6 +25,7 @@ void EnableDebugLayer()
 Dx12Wrapper::Dx12Wrapper()
 {
 	EnableDebugLayer();
+	CreateTextureLoaderTable();
 
 	if (!InitializeDXGIDevice())
 	{
@@ -82,8 +83,10 @@ Dx12Wrapper::Dx12Wrapper()
 	{
 		assert(0);
 	}
-
-	CreateTextureLoaderTable();
+	if (!CreateEffectBufferAndView())
+	{
+		assert(0);
+	}
 }
 
 // +-------------------------------+ //
@@ -117,6 +120,12 @@ const ComPtr<ID3D12Resource> Dx12Wrapper::GrayGradTex() const
 
 void Dx12Wrapper::BeginDraw()
 {
+	// 現在のバックバッファーのインデックスを取得
+	m_bbIdx = m_swapChain->GetCurrentBackBufferIndex();
+	m_cmdList->ResourceBarrier(
+		1, &CD3DX12_RESOURCE_BARRIER::Transition(
+			m_backBuffers[m_bbIdx].Get(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET));
+
 	m_cmdList->ResourceBarrier(
 		1, &CD3DX12_RESOURCE_BARRIER::Transition(
 			m_peraResource.Get(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET));
@@ -190,6 +199,7 @@ void Dx12Wrapper::DrawPeraPolygon()
 	auto handle = m_peraRegisterHeap->GetGPUDescriptorHandleForHeapStart();
 	m_cmdList->SetGraphicsRootDescriptorTable(0, handle);
 
+	// 定数バッファビューの位置までずらす
 	handle.ptr += m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 	handle.ptr += m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 	m_cmdList->SetGraphicsRootDescriptorTable(1, handle);
@@ -206,13 +216,6 @@ void Dx12Wrapper::DrawPeraPolygon()
 
 void Dx12Wrapper::DrawPera2Polygon()
 {
-	// 現在のバックバッファーのインデックスを取得
-	m_bbIdx = m_swapChain->GetCurrentBackBufferIndex();
-
-	m_cmdList->ResourceBarrier(
-		1, &CD3DX12_RESOURCE_BARRIER::Transition(
-			m_backBuffers[m_bbIdx].Get(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET));
-
 	auto rtvH = m_rtvHeaps->GetCPUDescriptorHandleForHeapStart();
 	rtvH.ptr += m_bbIdx * m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
 
@@ -221,8 +224,11 @@ void Dx12Wrapper::DrawPera2Polygon()
 
 	auto handle = m_peraRegisterHeap->GetGPUDescriptorHandleForHeapStart();
 	handle.ptr += m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-
 	m_cmdList->SetGraphicsRootDescriptorTable(0, handle);
+
+	m_cmdList->SetDescriptorHeaps(1, m_effectSRVHeap.GetAddressOf());
+	m_cmdList->SetGraphicsRootDescriptorTable(2, m_effectSRVHeap->GetGPUDescriptorHandleForHeapStart());
+
 	m_cmdList->SetPipelineState(m_pera2Pipeline.Get());
 	m_cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
 	m_cmdList->IASetVertexBuffers(0, 1, &m_peraVBV);
@@ -802,9 +808,11 @@ bool Dx12Wrapper::CreatePeraResource()
 	handle = m_peraRegisterHeap->GetCPUDescriptorHandleForHeapStart();
 	m_device->CreateShaderResourceView(m_peraResource.Get(), &srvDesc, handle);
 
+	// 2枚目
 	handle.ptr += m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 	m_device->CreateShaderResourceView(m_peraResource2.Get(), &srvDesc, handle);
 
+	// 定数
 	handle.ptr += m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 
 	// ウェイト用の定数バッファビューを作る
@@ -876,7 +884,7 @@ bool Dx12Wrapper::CreatePeraPipeline()
 	if (FAILED(result)) return false;
 
 	// ディスクリプタレンジ
-	D3D12_DESCRIPTOR_RANGE range[2]{};
+	D3D12_DESCRIPTOR_RANGE range[3]{};
 	range[0].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV; // テクスチャ
 	range[0].BaseShaderRegister = 0; // 0番スロット
 	range[0].NumDescriptors = 1;
@@ -885,8 +893,12 @@ bool Dx12Wrapper::CreatePeraPipeline()
 	range[1].BaseShaderRegister = 0; // 0番スロット
 	range[1].NumDescriptors = 1;
 
+	range[2].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV; // テクスチャ
+	range[2].BaseShaderRegister = 1; // 1番スロット
+	range[2].NumDescriptors = 1;
+
 	// ルートパラメーター
-	D3D12_ROOT_PARAMETER rp[2]{};
+	D3D12_ROOT_PARAMETER rp[3]{};
 	rp[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
 	rp[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
 	rp[0].DescriptorTable.pDescriptorRanges = &range[0];
@@ -897,13 +909,18 @@ bool Dx12Wrapper::CreatePeraPipeline()
 	rp[1].DescriptorTable.pDescriptorRanges = &range[1];
 	rp[1].DescriptorTable.NumDescriptorRanges = 1;
 
+	rp[2].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+	rp[2].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+	rp[2].DescriptorTable.pDescriptorRanges = &range[2];
+	rp[2].DescriptorTable.NumDescriptorRanges = 1;
+
 	// サンプラー
 	D3D12_STATIC_SAMPLER_DESC sampler = CD3DX12_STATIC_SAMPLER_DESC(0); // 0番スロットのサンプラー
 
 	// ルートシグネチャ作成
 	D3D12_ROOT_SIGNATURE_DESC rsDesc{};
 	rsDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
-	rsDesc.NumParameters = 2;
+	rsDesc.NumParameters = 3;
 	rsDesc.pParameters = rp;
 	rsDesc.NumStaticSamplers = 1;
 	rsDesc.pStaticSamplers = &sampler;
@@ -943,7 +960,7 @@ bool Dx12Wrapper::CreatePeraPipeline()
 
 	// ペラ2枚目用ピクセルシェーダー
 	result = D3DCompileFromFile(L"Shader/PeraPixel.hlsl", nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE,
-		"VerticalBokehPS", "ps_5_0", 0, 0, ps.ReleaseAndGetAddressOf(), errBlob.ReleaseAndGetAddressOf());
+		"EffectPS", "ps_5_0", 0, 0, ps.ReleaseAndGetAddressOf(), errBlob.ReleaseAndGetAddressOf());
 
 	if (FAILED(result)) return false;
 
@@ -981,8 +998,35 @@ bool Dx12Wrapper::CreateBokehParamResouece()
 	return true;
 }
 
-bool Dx12Wrapper::CreatePeraResouece2()
+bool Dx12Wrapper::CreateEffectBufferAndView()
 {
+	// 法線マップをロードする
+	m_effectTexBuffer = LoadTextureFromFile("Normal/normalmap.jpg");
+	
+	if (m_effectTexBuffer.Get() == nullptr)
+	{
+		return false;
+	}
+
+	// ポストエフェクト用のディスクリプタヒープ生成
+	D3D12_DESCRIPTOR_HEAP_DESC heapDesc{};
+	heapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+	heapDesc.NumDescriptors = 1;
+	heapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+	auto result = m_device->CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(m_effectSRVHeap.ReleaseAndGetAddressOf()));
+
+	if (FAILED(result)) return false;
+
+	// ポストエフェクト用テクスチャビューを作る
+	auto desc = m_effectTexBuffer->GetDesc();
+	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc{};
+	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+	srvDesc.Format = desc.Format;
+	srvDesc.Texture2D.MipLevels = 1;
+	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+
+	m_device->CreateShaderResourceView(m_effectTexBuffer.Get(), &srvDesc,
+		m_effectSRVHeap->GetCPUDescriptorHandleForHeapStart());
 
 	return true;
 }
