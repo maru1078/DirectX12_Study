@@ -69,6 +69,7 @@ void Application::Run()
 		m_pmdActor->Update();
 		m_pmdActor->Draw();
 		m_dx12->DrawPeraPolygon();
+		m_dx12->DrawPera2Polygon();
 		m_dx12->EndDraw();
 	}
 }

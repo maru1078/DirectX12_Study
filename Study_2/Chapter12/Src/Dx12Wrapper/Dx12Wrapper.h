@@ -46,6 +46,7 @@ public:
 	void BeginDraw();
 	void SetSceneMat();
 	void DrawPeraPolygon();
+	void DrawPera2Polygon();
 	void EndDraw();
 	void WaitForCommandQueue();
 	ComPtr<ID3D12Resource> GetTextureByPath(const std::string& path);
@@ -66,6 +67,8 @@ private:
 	bool CreatePeraResource();
 	bool CreatePeraPolygon();
 	bool CreatePeraPipeline();
+	bool CreateBokehParamResouece();
+	bool CreatePeraResouece2();
 	ComPtr<ID3D12Resource> LoadTextureFromFile(const std::string& texPath);
 
 private:
@@ -93,19 +96,21 @@ private:
 	std::map<std::string, ComPtr<ID3D12Resource>> m_resourceTable;
 	UINT m_bbIdx;
 
-	ComPtr<ID3D12Resource> m_whiteTex;
-	ComPtr<ID3D12Resource> m_blackTex;
-	ComPtr<ID3D12Resource> m_gradTex;
+	ComPtr<ID3D12Resource> m_whiteTex{ nullptr };
+	ComPtr<ID3D12Resource> m_blackTex{ nullptr };
+	ComPtr<ID3D12Resource> m_gradTex{ nullptr };
 	float angle{ 0 };
 
-	// Chapter12で追加
-	ComPtr<ID3D12Resource> m_peraResource;
-	ComPtr<ID3D12DescriptorHeap> m_peraRTVHeap; // レンダーターゲット用
-	ComPtr<ID3D12DescriptorHeap> m_peraSRVHeap; // テクスチャ用
-	ComPtr<ID3D12Resource> m_peraVB;
+	ComPtr<ID3D12Resource> m_peraResource{ nullptr };
+	ComPtr<ID3D12DescriptorHeap> m_peraRTVHeap{ nullptr }; // レンダーターゲット用
+	ComPtr<ID3D12DescriptorHeap> m_peraRegisterHeap{ nullptr }; // テクスチャ用
+	ComPtr<ID3D12Resource> m_peraVB{ nullptr };
 	D3D12_VERTEX_BUFFER_VIEW m_peraVBV;
-	ComPtr<ID3D12RootSignature> m_peraRootSignature;
-	ComPtr<ID3D12PipelineState> m_peraPipeline;
+	ComPtr<ID3D12RootSignature> m_peraRootSignature{ nullptr };
+	ComPtr<ID3D12PipelineState> m_peraPipeline{ nullptr };
+	ComPtr<ID3D12Resource> m_bokehParamBuffer{ nullptr };
+	ComPtr<ID3D12Resource> m_peraResource2{ nullptr }; // ペラ2枚目
+	ComPtr<ID3D12PipelineState> m_pera2Pipeline{ nullptr };
 };
 
 #endif // !DX12_WRAPPER_H_

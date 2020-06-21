@@ -1,5 +1,25 @@
 #include "PeraHeader.hlsli"
 
+float4 VerticalBokehPS(Output input) : SV_TARGET
+{
+	float w, h, level;
+    tex.GetDimensions(0, w, h, level);
+
+	float dy = 1.0 / h;
+	float4 ret = float4(0, 0, 0, 0);
+	float4 col = tex.Sample(smp, input.uv);
+
+	ret += bkweights[0] * col;
+
+	for (int i = 1; i < 8; ++i)
+	{
+		ret += bkweights[i >> 2][i % 4] * tex.Sample(smp, input.uv + float2(0, i * dy));
+		ret += bkweights[i >> 2][i % 4] * tex.Sample(smp, input.uv + float2(0, -i * dy));
+	}
+
+	return float4(ret.rgb, col.a);
+}
+
 float4 PeraPS(Output input) : SV_TARGET
 {
 	float4 col = tex.Sample(smp, input.uv);
@@ -9,28 +29,82 @@ float4 PeraPS(Output input) : SV_TARGET
 	float dy = 1.0 / h;
 	float4 ret = float4(0, 0, 0, 0);
 
+	// ガウシアンぼかし（本格版）
+	{
+		ret += bkweights[0] * col;
+
+		for (int i = 1; i < 8; ++i)
+		{
+			ret += bkweights[i >> 2][i % 4] * tex.Sample(smp, input.uv + float2(i * dx, 0));
+			ret += bkweights[i >> 2][i % 4] * tex.Sample(smp, input.uv + float2(-i * dx, 0));
+		}
+
+		return float4(ret.rgb, col.a);
+	}
+
+	// ガウシアンぼかし（簡易版）
+	{
+		//// 今のピクセルを中心に縦横5ずつになるように加算する
+		//// 最上段
+		//ret += tex.Sample(smp, input.uv + float2(-2 * dx, 2 * dy)) * 1;
+		//ret += tex.Sample(smp, input.uv + float2(-1 * dx, 2 * dy)) * 4;
+		//ret += tex.Sample(smp, input.uv + float2( 0 * dx, 2 * dy)) * 6;
+		//ret += tex.Sample(smp, input.uv + float2( 1 * dx, 2 * dy)) * 4;
+		//ret += tex.Sample(smp, input.uv + float2( 2 * dx, 2 * dy)) * 1;
+
+		//// 1つ上の段
+		//ret += tex.Sample(smp, input.uv + float2(-2 * dx, 1 * dy)) *  4;
+		//ret += tex.Sample(smp, input.uv + float2(-1 * dx, 1 * dy)) * 16;
+		//ret += tex.Sample(smp, input.uv + float2( 0 * dx, 1 * dy)) * 24;
+		//ret += tex.Sample(smp, input.uv + float2( 1 * dx, 1 * dy)) * 16;
+		//ret += tex.Sample(smp, input.uv + float2( 2 * dx, 1 * dy)) *  4;
+
+		//// 中段
+		//ret += tex.Sample(smp, input.uv + float2(-2 * dx, 0 * dy)) *  6;
+		//ret += tex.Sample(smp, input.uv + float2(-1 * dx, 0 * dy)) * 24;
+		//ret += tex.Sample(smp, input.uv + float2( 0 * dx, 0 * dy)) * 36;
+		//ret += tex.Sample(smp, input.uv + float2( 1 * dx, 0 * dy)) * 24;
+		//ret += tex.Sample(smp, input.uv + float2( 2 * dx, 0 * dy)) *  6;
+
+		//// 1つ下の段
+		//ret += tex.Sample(smp, input.uv + float2(-2 * dx, -1 * dy)) *  4;
+		//ret += tex.Sample(smp, input.uv + float2(-1 * dx, -1 * dy)) * 16;
+		//ret += tex.Sample(smp, input.uv + float2( 0 * dx, -1 * dy)) * 24;
+		//ret += tex.Sample(smp, input.uv + float2( 1 * dx, -1 * dy)) * 16;
+		//ret += tex.Sample(smp, input.uv + float2( 2 * dx, -1 * dy)) *  4;
+
+		//// 最下段
+		//ret += tex.Sample(smp, input.uv + float2(-2 * dx, -2 * dy)) * 1;
+		//ret += tex.Sample(smp, input.uv + float2(-1 * dx, -2 * dy)) * 4;
+		//ret += tex.Sample(smp, input.uv + float2( 0 * dx, -2 * dy)) * 6;
+		//ret += tex.Sample(smp, input.uv + float2( 1 * dx, -2 * dy)) * 4;
+		//ret += tex.Sample(smp, input.uv + float2( 2 * dx, -2 * dy)) * 1;
+
+		//return ret / 256;
+	}
+
 	// 輪郭線抽出
 	{
-		ret += tex.Sample(smp, input.uv + float2(-2 * dx, -2 * dy)) *  0; // 左上
-		ret += tex.Sample(smp, input.uv + float2(      0, -2 * dy)) * -1; // 上
-		ret += tex.Sample(smp, input.uv + float2( 2 * dx, -2 * dy)) *  0; // 右上
+		//ret += tex.Sample(smp, input.uv + float2(-2 * dx, -2 * dy)) *  0; // 左上
+		//ret += tex.Sample(smp, input.uv + float2(      0, -2 * dy)) * -1; // 上
+		//ret += tex.Sample(smp, input.uv + float2( 2 * dx, -2 * dy)) *  0; // 右上
 
-		ret += tex.Sample(smp, input.uv + float2(-2 * dx, 0)) * -1; // 左
-		ret += tex.Sample(smp, input.uv)                      *  4; // 自分
-		ret += tex.Sample(smp, input.uv + float2 (2 * dx, 0)) * -1; // 右
+		//ret += tex.Sample(smp, input.uv + float2(-2 * dx, 0)) * -1; // 左
+		//ret += tex.Sample(smp, input.uv)                      *  4; // 自分
+		//ret += tex.Sample(smp, input.uv + float2 (2 * dx, 0)) * -1; // 右
 
-		ret += tex.Sample(smp, input.uv + float2(-2 * dx, 2 * dy)) *  0; // 左下
-		ret += tex.Sample(smp, input.uv + float2(      0, 2 * dy)) * -1; // 下
-		ret += tex.Sample(smp, input.uv + float2( 2 * dx, 2 * dy)) *  0; // 右下
+		//ret += tex.Sample(smp, input.uv + float2(-2 * dx, 2 * dy)) *  0; // 左下
+		//ret += tex.Sample(smp, input.uv + float2(      0, 2 * dy)) * -1; // 下
+		//ret += tex.Sample(smp, input.uv + float2( 2 * dx, 2 * dy)) *  0; // 右下
 
-		// 色反転
-		float y = dot(ret.rgb, float3(0.299, 0.587, 0.114));
+		//// 色反転
+		//float y = dot(ret.rgb, float3(0.299, 0.587, 0.114));
 
-		y = pow(1.0 - y, 10);
+		//y = pow(1.0 - y, 10);
 
-		y = step(0.2, y); // 薄く黒がでているところをなくしてるのかな？
+		//y = step(0.2, y); // 薄く黒がでているところをなくしてるのかな？
 
-		return float4(y, y, y, 1.0);
+		//return float4(y, y, y, 1.0);
 	}
 
 	// シャープネス（エッジの協調）

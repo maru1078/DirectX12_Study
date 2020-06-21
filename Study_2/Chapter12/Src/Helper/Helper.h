@@ -3,6 +3,7 @@
 
 #include <string>
 #include <assert.h>
+#include <vector>
 
 // ★namespaceに入れたら「既に定義されています」みたいなエラーがなくなった・・・？
 namespace
@@ -111,6 +112,30 @@ namespace
 		ret.first = path.substr(0, idx);
 		ret.second = path.substr(idx + 1, path.length() - idx - 1);
 		return ret;
+	}
+
+	std::vector<float> GetGaussianWeights(size_t count, float s)
+	{
+		std::vector<float> weights(count); // ウェイト配列返却用
+		float x = 0.0f;
+		float total = 0.0f;
+
+		for (auto& weight : weights)
+		{
+			weight = expf(-(x * x) / (2 * s * s));
+			total += weight;
+			x += 1.0f;
+		}
+
+		total = total * 2.0f - 1.0f;
+
+		// 足して1になるようにする
+		for (auto& weight : weights)
+		{
+			weight /= total;
+		}
+
+		return weights;
 	}
 }
 
