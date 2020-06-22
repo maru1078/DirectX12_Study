@@ -40,7 +40,9 @@ bool Application::Init(float windowWidth, float windowHeight)
 	m_pmdRenderer = std::make_shared<PMDRenderer>(m_dx12);
 
 	// PMDモデル
-	m_pmdActor = std::make_shared<PMDActor>("Model/初音ミク.pmd", m_dx12);
+	//m_pmdActor = std::make_shared<PMDActor>("Model/初音ミク.pmd", m_dx12);
+	m_pmdActor = std::make_shared<PMDActor>("Model/鏡音リン.pmd", m_dx12);
+	//m_pmdActor = std::make_shared<PMDActor>("Model/鏡音レン.pmd", m_dx12);
 
 	return true;
 }
@@ -72,8 +74,14 @@ void Application::Run()
 		m_dx12->BeginDraw();
 		m_pmdRenderer->PreDrawPMD();
 		m_pmdActor->Draw();
-		m_dx12->DrawPeraPolygon(/* Draw to back buffer? */true);
-		//m_dx12->DrawPera2Polygon();
+
+		// ポストエフェクトをするかしないかの切り替えが面倒だったので
+		// バックバッファに書き込んだかのフラグによって処理を分ける方法に。
+		if (!m_dx12->DrawPeraPolygon(/* Draw to back buffer? */true))
+		{
+			m_dx12->DrawPera2Polygon();
+		}
+
 		m_dx12->EndDraw();
 	}
 }

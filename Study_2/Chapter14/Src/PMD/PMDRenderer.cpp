@@ -171,9 +171,10 @@ bool PMDRenderer::CreatePipeline()
 	gpipeline.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE; // 三角形で構成
 
 	// レンダーターゲット設定
-	gpipeline.NumRenderTargets = 2;
+	gpipeline.NumRenderTargets = 3;
 	gpipeline.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM; // 0～1に正規化されたRGBA
 	gpipeline.RTVFormats[1] = DXGI_FORMAT_R8G8B8A8_UNORM;
+	gpipeline.RTVFormats[2] = DXGI_FORMAT_R8G8B8A8_UNORM;
 
 	// サンプル数指定
 	gpipeline.SampleDesc.Count = 1; // サンプリングは 1 ピクセルにつき 1

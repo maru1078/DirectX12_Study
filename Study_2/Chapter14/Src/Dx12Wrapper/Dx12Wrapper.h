@@ -49,7 +49,7 @@ public:
 	void PreDrawShadow();
 	void BeginDraw();
 	void SetSceneMat();
-	void DrawPeraPolygon(bool isToBackBuffer = true);
+	bool DrawPeraPolygon(bool isToBackBuffer = true);
 	void DrawPera2Polygon();
 	void EndDraw();
 	void WaitForCommandQueue();
@@ -128,6 +128,9 @@ private:
 
 	// シャドウマップ用深度バッファー
 	ComPtr<ID3D12Resource> m_lightDepthBuffer{ nullptr };
+
+	// ブルーム用バッファ
+	std::array<ComPtr<ID3D12Resource>, 2> m_bloomBuffer;
 };
 
 #endif // !DX12_WRAPPER_H_
