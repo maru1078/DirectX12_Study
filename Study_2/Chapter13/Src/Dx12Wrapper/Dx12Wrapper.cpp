@@ -9,6 +9,8 @@
 #pragma comment(lib, "DirectXTex.lib")
 #pragma comment(lib, "d3dcompiler.lib")
 
+constexpr uint32_t shadow_difinition = 1024;
+
 void EnableDebugLayer()
 {
 #ifdef _DEBUG
@@ -123,6 +125,21 @@ const ComPtr<ID3D12Resource> Dx12Wrapper::GrayGradTex() const
 	return m_gradTex;
 }
 
+void Dx12Wrapper::PreDrawShadow()
+{
+	auto handle = m_dsvHeap->GetCPUDescriptorHandleForHeapStart();
+	handle.ptr += m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
+	m_cmdList->OMSetRenderTargets(0, nullptr, false, &handle);
+	m_cmdList->ClearDepthStencilView(handle, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0.0f, 0, nullptr);
+
+	// 深度バッファを作った時の幅、高さと合わせなきゃいけない。
+	CD3DX12_VIEWPORT vp{ 0.0f, 0.0f, (FLOAT)shadow_difinition, (FLOAT)shadow_difinition };
+	CD3DX12_RECT scissorRect{ 0, 0, (LONG)shadow_difinition, (LONG)shadow_difinition };
+
+	m_cmdList->RSSetViewports(1, &vp);
+	m_cmdList->RSSetScissorRects(1, &scissorRect);
+}
+
 void Dx12Wrapper::BeginDraw()
 {
 	// 現在のバックバッファーのインデックスを取得
@@ -138,9 +155,6 @@ void Dx12Wrapper::BeginDraw()
 	auto rtvHeapPointer = m_peraRTVHeap->GetCPUDescriptorHandleForHeapStart();
 	auto dsvH = m_dsvHeap->GetCPUDescriptorHandleForHeapStart();
 
-	auto rtvH = m_rtvHeaps->GetCPUDescriptorHandleForHeapStart();
-	rtvH.ptr += m_bbIdx * m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-
 	// レンダーターゲットをセット
 	m_cmdList->OMSetRenderTargets(1, &rtvHeapPointer, false, &dsvH);
 
@@ -155,6 +169,12 @@ void Dx12Wrapper::BeginDraw()
 
 	// シザー矩形をセット
 	m_cmdList->RSSetScissorRects(1, &m_scissorRect);
+
+	// 深度SRVをセット
+	m_cmdList->SetDescriptorHeaps(1, m_depthSRVHeap.GetAddressOf());
+	auto handle = m_depthSRVHeap->GetGPUDescriptorHandleForHeapStart();
+	handle.ptr += m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+	m_cmdList->SetGraphicsRootDescriptorTable(3, handle);
 }
 
 void Dx12Wrapper::SetSceneMat()
@@ -217,9 +237,14 @@ void Dx12Wrapper::DrawPeraPolygon(bool isToBackBuffer)
 	m_cmdList->SetGraphicsRootDescriptorTable(1, handle);
 
 	// 深度バッファテクスチャ
+	handle = m_depthSRVHeap->GetGPUDescriptorHandleForHeapStart();
+	
+	// これをすると位置が1つずれるので、ライトからの深度情報を表示できる
+	//handle.ptr += m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+	
 	m_cmdList->SetDescriptorHeaps(1, m_depthSRVHeap.GetAddressOf());
 	m_cmdList->SetGraphicsRootDescriptorTable(3, 
-		m_depthSRVHeap->GetGPUDescriptorHandleForHeapStart());
+		handle);
 
 	m_cmdList->SetPipelineState(m_peraPipeline.Get());
 	m_cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
@@ -526,14 +551,29 @@ bool Dx12Wrapper::CreateDepthStencilView()
 
 	if (FAILED(result)) return false;
 
+	depthResDesc.Width = shadow_difinition;
+	depthResDesc.Height = shadow_difinition;
+
+	result = m_device->CreateCommittedResource(
+		&depthHeapProp,
+		D3D12_HEAP_FLAG_NONE,
+		&depthResDesc,
+		D3D12_RESOURCE_STATE_DEPTH_WRITE, // 深度値書き込み
+		&depthClearValue,
+		IID_PPV_ARGS(m_lightDepthBuffer.ReleaseAndGetAddressOf()));
+
+	if (FAILED(result)) return false;
+
 	// 深度のためのディスクリプタヒープ作成
 	D3D12_DESCRIPTOR_HEAP_DESC dsvHeapDesc{}; // 深度に使うことがわかればよい
-	dsvHeapDesc.NumDescriptors = 1; // 深度ビューは1つ
+	dsvHeapDesc.NumDescriptors = 2;
 	dsvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_DSV; // デプスステンシルビューとして使う
 	result = m_device->CreateDescriptorHeap(&dsvHeapDesc,
 		IID_PPV_ARGS(m_dsvHeap.ReleaseAndGetAddressOf()));
 
 	if (FAILED(result)) return false;
+
+	auto handle = m_dsvHeap->GetCPUDescriptorHandleForHeapStart();
 
 	// 深度ビュー作成
 	D3D12_DEPTH_STENCIL_VIEW_DESC dsvDesc{};
@@ -541,7 +581,13 @@ bool Dx12Wrapper::CreateDepthStencilView()
 	dsvDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D; // 2Dテクスチャ
 	dsvDesc.Flags = D3D12_DSV_FLAG_NONE; // フラグは特になし
 	m_device->CreateDepthStencilView(m_depthBuffer.Get(), &dsvDesc,
-		m_dsvHeap->GetCPUDescriptorHandleForHeapStart());
+		handle);
+
+	handle.ptr += m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
+
+	//　ライトデプス
+	m_device->CreateDepthStencilView(m_lightDepthBuffer.Get(), &dsvDesc,
+		handle);
 
 	return true;
 }
@@ -560,7 +606,7 @@ bool Dx12Wrapper::CreateSceneView()
 	if (FAILED(result)) return false;
 
 	XMMATRIX worldMat = XMMatrixIdentity();
-	XMFLOAT3 eye{ 0.0f, 10.0f, -30.0f };
+	XMFLOAT3 eye{ 0.0f, 15.0f, -30.0f };
 	XMFLOAT3 target{ 0.0f, 10.0f, 0.0f };
 	XMFLOAT3 up{ 0.0f, 1.0f, 0.0f };
 	XMFLOAT4 planeVec{ 0.0f, 1.0f, 0.0f, 0.0f };
@@ -1076,7 +1122,7 @@ bool Dx12Wrapper::CreateDepthSRVHeapAndView()
 	D3D12_DESCRIPTOR_HEAP_DESC heapDesc{};
 	heapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
 	heapDesc.NodeMask = 0;
-	heapDesc.NumDescriptors = 1;
+	heapDesc.NumDescriptors = 2;
 	heapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
 	auto result = m_device->CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(m_depthSRVHeap.ReleaseAndGetAddressOf()));
 
@@ -1089,7 +1135,13 @@ bool Dx12Wrapper::CreateDepthSRVHeapAndView()
 	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
 	auto handle = m_depthSRVHeap->GetCPUDescriptorHandleForHeapStart();
 
+	// 通常デプス用
 	m_device->CreateShaderResourceView(m_depthBuffer.Get(),
+		&srvDesc, handle);
+
+	handle.ptr += m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+
+	m_device->CreateShaderResourceView(m_lightDepthBuffer.Get(),
 		&srvDesc, handle);
 
 	return true;

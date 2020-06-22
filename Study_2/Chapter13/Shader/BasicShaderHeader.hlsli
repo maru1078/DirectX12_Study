@@ -2,9 +2,11 @@ Texture2D<float4> tex : register(t0);  // 0番スロットに設定されたテクスチャ
 Texture2D<float4> sph : register(t1);  // 1番スロットに設定されたテクスチャ
 Texture2D<float4> spa : register(t2);  // 2番スロットに設定されたテクスチャ
 Texture2D<float4> toon : register(t3); // 3番スロットに設定されたテクスチャ
+Texture2D<float> lightDepthTex : register(t4); // シャドウマップ用ライト深度テクスチャ
 
 SamplerState smp : register(s0);     // 0番スロットに設定されたサンプラー
 SamplerState smpToon : register(s1); // 1番スロットに設定されたサンプラー（トゥーン用）
+SamplerComparisonState shadowSmp : register(s2); // シャドウマップ用のサンプラー
 
 // 頂点シェーダーからピクセルシェーダーへのやり取りに使用する構造体
 struct Output
@@ -15,6 +17,7 @@ struct Output
 	float2 uv      : TEXCOORD;    // uv値（テクスチャ上の座標 0.0f～1.0f）
 	uint instNo    : SV_InstanceID;
 	float3 ray     : VECTOR;      // ベクトル
+	float4 tpos    : TPOS;
 };
 
 // 定数バッファ

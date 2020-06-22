@@ -22,6 +22,15 @@ PMDRenderer::~PMDRenderer()
 {
 }
 
+void PMDRenderer::PreDrawFromLight()
+{
+	// パイプラインをセット
+	m_dx12.lock()->CommandList()->SetPipelineState(m_plsShadow.Get());
+
+	// ルートシグネチャをセット
+	m_dx12.lock()->CommandList()->SetGraphicsRootSignature(m_rootSignature.Get());
+}
+
 void PMDRenderer::PreDrawPMD()
 {
 	// パイプラインをセット
@@ -34,30 +43,44 @@ void PMDRenderer::PreDrawPMD()
 bool PMDRenderer::CreateRootSignature()
 {
 	// レンジの作成
-	CD3DX12_DESCRIPTOR_RANGE range[4]{};
+	CD3DX12_DESCRIPTOR_RANGE range[5]{};
 	range[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 0); // ビュープロジェクションなどの変換行列
 	range[1].Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 1); // ワールド変換行列（モデルそれぞれ）
 	range[2].Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 2); // マテリアル用CBV
 	range[3].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 4, 0); // マテリアル用SRV
+	range[4].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 4); // ライトデプス用SRV
 
 	// ルートパラメーター作成
-	CD3DX12_ROOT_PARAMETER rootParam[3]{};
+	CD3DX12_ROOT_PARAMETER rootParam[4]{};
 	rootParam[0].InitAsDescriptorTable(1, &range[0]);
 	rootParam[1].InitAsDescriptorTable(1, &range[1]);
 	rootParam[2].InitAsDescriptorTable(2, &range[2]);
+	rootParam[3].InitAsDescriptorTable(1, &range[4]); // ライトデプス用
 
 	// サンプラー作成
-	CD3DX12_STATIC_SAMPLER_DESC samplerDesc[2]{};
+	CD3DX12_STATIC_SAMPLER_DESC samplerDesc[3]{};
 	samplerDesc[0].Init(0);
 	samplerDesc[1].Init(1, D3D12_FILTER_ANISOTROPIC, D3D12_TEXTURE_ADDRESS_MODE_CLAMP, D3D12_TEXTURE_ADDRESS_MODE_CLAMP);
+	
+	// ほとんど同じなので通常のサンプラー情報をコピー
+	samplerDesc[2] = samplerDesc[0];
+	samplerDesc[2].AddressU = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+	samplerDesc[2].AddressV = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+	samplerDesc[2].AddressW = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+
+	// <=であればtrue(1.0)、そうでなければfalse(0.0)
+	samplerDesc[2].ComparisonFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
+	samplerDesc[2].Filter = D3D12_FILTER_COMPARISON_MIN_MAG_MIP_LINEAR; // 比較結果をバイリニア補間
+	samplerDesc[2].MaxAnisotropy = 1; // 深度傾斜を有効に
+	samplerDesc[2].ShaderRegister = 2; // 2番スロット
 
 	// ルートシグネチャ作成
 	D3D12_ROOT_SIGNATURE_DESC rootSignatureDesc{};
 	rootSignatureDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
 	rootSignatureDesc.pParameters = rootParam; // ルートパラメーターの先頭アドレス
-	rootSignatureDesc.NumParameters = 3; // ルートパラメーター数
+	rootSignatureDesc.NumParameters = _countof(rootParam); // ルートパラメーター数
 	rootSignatureDesc.pStaticSamplers = samplerDesc;
-	rootSignatureDesc.NumStaticSamplers = 2;
+	rootSignatureDesc.NumStaticSamplers = _countof(samplerDesc);
 
 	ID3DBlob* rootSigBlob{ nullptr };
 	auto result = D3D12SerializeRootSignature(
@@ -166,6 +189,33 @@ bool PMDRenderer::CreatePipeline()
 	result = m_dx12.lock()->Device()->CreateGraphicsPipelineState(
 		&gpipeline,
 		IID_PPV_ARGS(m_pipelineState.ReleaseAndGetAddressOf()));
+
+	if (FAILED(result)) return false;
+
+	result = D3DCompileFromFile(
+		L"Shader/BasicVertexShader.hlsl",
+		nullptr,
+		D3D_COMPILE_STANDARD_FILE_INCLUDE,
+		"ShadowVS",
+		"vs_5_0",
+		D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION,
+		0,
+		m_vsBlob.ReleaseAndGetAddressOf(),
+		m_errorBlob.ReleaseAndGetAddressOf());
+
+	if (FAILED(result)) return false;
+
+	gpipeline.VS = CD3DX12_SHADER_BYTECODE(m_vsBlob.Get());
+	gpipeline.PS.BytecodeLength = 0;
+	gpipeline.PS.pShaderBytecode = 0;
+	gpipeline.NumRenderTargets = 0;
+	gpipeline.RTVFormats[0] = DXGI_FORMAT_UNKNOWN;
+
+	result = m_dx12.lock()->Device()->CreateGraphicsPipelineState(
+		&gpipeline,
+		IID_PPV_ARGS(m_plsShadow.ReleaseAndGetAddressOf()));
+
+	if (FAILED(result)) return false;
 
 	return true;
 }

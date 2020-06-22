@@ -206,7 +206,7 @@ public:
 	void PlayAnimation();
 	void MotionUpdate();
 	void Update();
-	void Draw();
+	void Draw(bool isShadow = false);
 
 private:
 
@@ -244,6 +244,7 @@ private:
 	std::weak_ptr<Dx12Wrapper> m_dx12;
 
 	std::vector<unsigned char> m_vertices;
+	unsigned int m_indexNum; // インデックス数
 	std::vector<unsigned short> m_indices;
 	std::vector<Material> m_materials;
 

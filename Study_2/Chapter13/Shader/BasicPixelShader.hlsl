@@ -22,6 +22,20 @@ float4 BasicPS(Output input) : SV_TARGET
 	float3 refLight = normalize(reflect(light, input.normal.xyz));
 	float specularB = pow(saturate(dot(refLight, -input.ray)), specular.a);
 
+	float3 posFromLightVP = input.tpos.xyz / input.tpos.w;
+	float2 shadowUV = (posFromLightVP + float2(1, -1)) * float2(0.5, -0.5);
+	float depthFromLight = lightDepthTex.SampleCmp(
+		shadowSmp, // 比較サンプラー
+		shadowUV, // uv値
+		posFromLightVP.z - 0.005); // 比較対象値
+	float shadowWeight = lerp(0.5, 1.0, depthFromLight);
+	//if (depthFromLight < posFromLightVP.z - 0.001)
+	//{
+	//	shadowWeight = 0.5;
+	//}
+
+	toonDif *= shadowWeight;
+
 	return max(saturate(
 		toonDif // ディフューズ色
 		* diffuse

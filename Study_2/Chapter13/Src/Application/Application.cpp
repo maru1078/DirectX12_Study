@@ -63,10 +63,14 @@ void Application::Run()
 		}
 
 		// DirectX12‚Ìˆ—
-		m_dx12->BeginDraw();
-		m_pmdRenderer->PreDrawPMD();
+		m_pmdRenderer->PreDrawFromLight();
+		m_dx12->PreDrawShadow();
 		m_dx12->SetSceneMat();
 		m_pmdActor->Update();
+		m_pmdActor->Draw(true);
+
+		m_dx12->BeginDraw();
+		m_pmdRenderer->PreDrawPMD();
 		m_pmdActor->Draw();
 		m_dx12->DrawPeraPolygon();
 		//m_dx12->DrawPera2Polygon();

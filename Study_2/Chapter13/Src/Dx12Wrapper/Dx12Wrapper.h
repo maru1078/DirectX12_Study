@@ -45,6 +45,7 @@ public:
 	const ComPtr<ID3D12Resource> BlackTex() const;
 	const ComPtr<ID3D12Resource> GrayGradTex() const;
 
+	void PreDrawShadow();
 	void BeginDraw();
 	void SetSceneMat();
 	void DrawPeraPolygon(bool isToBackBuffer = true);
@@ -123,6 +124,9 @@ private:
 	XMFLOAT3 m_parallelLightVec;
 	// 深度値テクスチャ用
 	ComPtr<ID3D12DescriptorHeap> m_depthSRVHeap{ nullptr };
+
+	// シャドウマップ用深度バッファー
+	ComPtr<ID3D12Resource> m_lightDepthBuffer{ nullptr };
 };
 
 #endif // !DX12_WRAPPER_H_

@@ -193,7 +193,7 @@ void PMDActor::Update()
 		* XMMatrixRotationY(m_angle);
 }
 
-void PMDActor::Draw()
+void PMDActor::Draw(bool isShadow)
 {
 	// プリミティブトポロジをセット
 	m_dx12.lock()->CommandList()->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
@@ -216,20 +216,28 @@ void PMDActor::Draw()
 	auto materialH = m_materialDescHeap->GetGPUDescriptorHandleForHeapStart();
 	unsigned int idxOffset = 0;
 
-	for (auto& m : m_materials)
+	if (isShadow)
 	{
-		// ルートパラメーターとディスクリプタヒープの関連付け（マテリアル用）
-		m_dx12.lock()->CommandList()->SetGraphicsRootDescriptorTable(
-			2, materialH);
+		m_dx12.lock()->CommandList()->DrawIndexedInstanced(m_indexNum,
+			1, 0, 0, 0);
+	}
+	else
+	{
+		for (auto& m : m_materials)
+		{
+			// ルートパラメーターとディスクリプタヒープの関連付け（マテリアル用）
+			m_dx12.lock()->CommandList()->SetGraphicsRootDescriptorTable(
+				2, materialH);
 
-		// ドローコール
-		m_dx12.lock()->CommandList()->DrawIndexedInstanced(m.indicesNum,
-			2, idxOffset, 0, 0);
+			// ドローコール
+			m_dx12.lock()->CommandList()->DrawIndexedInstanced(m.indicesNum,
+				2, idxOffset, 0, 0);
 
-		// ヒープポインターとインデックスを先に進める
-		materialH.ptr += m_dx12.lock()->Device()->
-			GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV) * 5;
-		idxOffset += m.indicesNum;
+			// ヒープポインターとインデックスを先に進める
+			materialH.ptr += m_dx12.lock()->Device()->
+				GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV) * 5;
+			idxOffset += m.indicesNum;
+		}
 	}
 }
 
@@ -239,7 +247,6 @@ bool PMDActor::LoadPMDFile(const std::string & filePath)
 	FILE* fp;
 	PMDHeader pmdHeader;
 	unsigned int vertNum; // 頂点数
-	unsigned int indicesNum; // インデックス数
 	unsigned int materialNum; // マテリアル数
 	std::vector<PMDMaterial> pmdMaterials;
 	unsigned short boneNum;
@@ -254,8 +261,8 @@ bool PMDActor::LoadPMDFile(const std::string & filePath)
 	m_vertices.resize(vertNum * sizeof(PMDVertex));
 	fread(m_vertices.data(), m_vertices.size(), 1, fp);
 
-	fread(&indicesNum, sizeof(indicesNum), 1, fp);
-	m_indices.resize(indicesNum);
+	fread(&m_indexNum, sizeof(m_indexNum), 1, fp);
+	m_indices.resize(m_indexNum);
 	fread(m_indices.data(), m_indices.size() * sizeof(m_indices[0]), 1, fp);
 
 	fread(&materialNum, sizeof(materialNum), 1, fp);

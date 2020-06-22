@@ -19,6 +19,7 @@ public:
 	PMDRenderer(std::weak_ptr<Dx12Wrapper> dx12);
 	~PMDRenderer();
 
+	void PreDrawFromLight();
 	void PreDrawPMD();
 
 	bool CreateRootSignature();
@@ -33,6 +34,7 @@ private:
 	ComPtr<ID3DBlob> m_errorBlob{ nullptr };
 	ComPtr<ID3D12RootSignature> m_rootSignature{ nullptr };
 	ComPtr<ID3D12PipelineState> m_pipelineState{ nullptr };
+	ComPtr<ID3D12PipelineState> m_plsShadow{ nullptr }; // ライトデプス用
 };
 
 #endif // !PMD_RENDERER_H_
