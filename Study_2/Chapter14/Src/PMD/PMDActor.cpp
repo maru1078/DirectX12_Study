@@ -100,6 +100,13 @@ PMDActor::PMDActor(const std::string & filePath, std::weak_ptr<Dx12Wrapper> dx12
 	PlayAnimation();
 }
 
+void PMDActor::Move(float x, float y, float z)
+{
+	m_pos.x += x;
+	m_pos.y += y;
+	m_pos.z += z;
+}
+
 void PMDActor::PlayAnimation()
 {
 	m_startTime = timeGetTime();

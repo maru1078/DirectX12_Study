@@ -66,12 +66,24 @@ float4 VerticalBokehPS(Output input) : SV_TARGET
 // ノーマルマップによるぼかし用
 float4 EffectPS(Output input) : SV_TARGET
 {
+	// 通常描画
+	return tex.Sample(smp, input.uv);
+
+
 	float2 nmTex = effectTex.Sample(smp, input.uv).xy;
 	nmTex = nmTex * 2.0 - 1.0;
 
 	// nmTexの範囲は-1～1だが、幅1がテクスチャ1枚の大きさであり、
 	// -1～1では歪み過ぎるため0.1を乗算
 	return tex.Sample(smp, input.uv + nmTex * 0.1);
+}
+
+// メインテクスチャを5x5ガウスでぼかす
+float4 BlurPS(Output input) : SV_TARGET
+{
+	float w, h, miplevels;
+    tex.GetDimensions(0, w, h, miplevels);
+	return Get5x5GaussianBlur(tex, smp, input.uv, 1.0 / w, 1.0 / h);
 }
 
 float4 PeraPS(Output input) : SV_TARGET
@@ -105,7 +117,27 @@ float4 PeraPS(Output input) : SV_TARGET
 		{
 			return texHighLum.Sample(smp, (input.uv - float2(0.0, 0.6)) * 5);
 		}
+		else if (input.uv.y < 1.0)
+		{
+			return texShrinkHighLum.Sample(smp, (input.uv - float2(0.0, 0.8)) * 5);
+		}
 	}
+
+	float4 bloomAccum = float4(0.0, 0.0, 0.0, 0.0);
+	float2 uvSize = float2(1.0, 0.5);
+	float2 uvOfst = float2(0.0, 0.0);
+
+	for (int i = 0; i < 8; ++i)
+	{
+		bloomAccum += Get5x5GaussianBlur(texShrinkHighLum, smp, 
+			input.uv * uvSize + uvOfst, dx, dy);
+		uvOfst.y += uvSize.y;
+		uvSize *= 0.5;
+	}
+
+	return tex.Sample(smp, input.uv) // 通常テクスチャ
+		+ Get5x5GaussianBlur(texHighLum, smp, input.uv, dx, dy)
+		+ saturate(bloomAccum);
 
 	return tex.Sample(smp, input.uv) + Get5x5GaussianBlur(texHighLum, smp, input.uv, dx, dy);
 

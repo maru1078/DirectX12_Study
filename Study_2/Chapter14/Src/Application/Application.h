@@ -52,7 +52,6 @@ private:
 
 	std::shared_ptr<Dx12Wrapper> m_dx12;
 	std::shared_ptr<PMDRenderer> m_pmdRenderer;
-	std::shared_ptr<PMDActor> m_pmdActor;
 };
 
 #endif // !APPLICATION_H_

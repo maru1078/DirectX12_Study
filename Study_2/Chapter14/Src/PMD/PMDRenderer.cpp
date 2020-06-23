@@ -22,6 +22,14 @@ PMDRenderer::~PMDRenderer()
 {
 }
 
+void PMDRenderer::Update()
+{
+	for (auto actor : m_actors)
+	{
+		actor->Update();
+	}
+}
+
 void PMDRenderer::PreDrawFromLight()
 {
 	// パイプラインをセット
@@ -38,6 +46,27 @@ void PMDRenderer::PreDrawPMD()
 
 	// ルートシグネチャをセット
 	m_dx12.lock()->CommandList()->SetGraphicsRootSignature(m_rootSignature.Get());
+}
+
+void PMDRenderer::DrawFromLight()
+{
+	for (auto actor : m_actors)
+	{
+		actor->Draw(true);
+	}
+}
+
+void PMDRenderer::DrawPMD()
+{
+	for (auto actor : m_actors)
+	{
+		actor->Draw();
+	}
+}
+
+void PMDRenderer::AddActor(std::shared_ptr<PMDActor> actor)
+{
+	m_actors.push_back(actor);
 }
 
 bool PMDRenderer::CreateRootSignature()

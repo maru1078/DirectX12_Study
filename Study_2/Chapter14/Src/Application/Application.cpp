@@ -40,9 +40,14 @@ bool Application::Init(float windowWidth, float windowHeight)
 	m_pmdRenderer = std::make_shared<PMDRenderer>(m_dx12);
 
 	// PMDモデル
-	//m_pmdActor = std::make_shared<PMDActor>("Model/初音ミク.pmd", m_dx12);
-	m_pmdActor = std::make_shared<PMDActor>("Model/鏡音リン.pmd", m_dx12);
-	//m_pmdActor = std::make_shared<PMDActor>("Model/鏡音レン.pmd", m_dx12);
+	auto miku = std::make_shared<PMDActor>("Model/初音ミク.pmd", m_dx12);
+	m_pmdRenderer->AddActor(miku);
+
+	auto rin = std::make_shared<PMDActor>("Model/鏡音リン.pmd", m_dx12, XMFLOAT3{ 10.0f, 0.0f, 10.0f });
+	m_pmdRenderer->AddActor(rin);
+
+	auto ren = std::make_shared<PMDActor>("Model/鏡音レン.pmd", m_dx12, XMFLOAT3{ -10.0f, 0.0f, 10.0f });
+	m_pmdRenderer->AddActor(ren);
 
 	return true;
 }
@@ -68,19 +73,28 @@ void Application::Run()
 		m_pmdRenderer->PreDrawFromLight();
 		m_dx12->PreDrawShadow();
 		m_dx12->SetSceneMat();
-		m_pmdActor->Update();
-		m_pmdActor->Draw(true);
+		m_pmdRenderer->Update();
+		m_pmdRenderer->DrawFromLight();
 
 		m_dx12->BeginDraw();
 		m_pmdRenderer->PreDrawPMD();
-		m_pmdActor->Draw();
+		m_pmdRenderer->DrawPMD();
 
 		// ポストエフェクトをするかしないかの切り替えが面倒だったので
 		// バックバッファに書き込んだかのフラグによって処理を分ける方法に。
-		if (!m_dx12->DrawPeraPolygon(/* Draw to back buffer? */true))
+		// 処理の順番の関係で、ブルームも一緒に切り替え。
+		if (!m_dx12->DrawPeraPolygon(/* Draw to back buffer? */false))
 		{
+			// ポストエフェクト
 			m_dx12->DrawPera2Polygon();
+
+			// ブルーム
+			m_dx12->DrawShrinkTextureForBlur();
 		}
+
+		m_pmdRenderer->PreDrawPMD();
+
+		// 本来ここに「バックバッファーへの描画」がある
 
 		m_dx12->EndDraw();
 	}

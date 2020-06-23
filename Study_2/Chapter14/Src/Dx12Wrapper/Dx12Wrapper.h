@@ -51,6 +51,7 @@ public:
 	void SetSceneMat();
 	bool DrawPeraPolygon(bool isToBackBuffer = true);
 	void DrawPera2Polygon();
+	void DrawShrinkTextureForBlur();
 	void EndDraw();
 	void WaitForCommandQueue();
 	ComPtr<ID3D12Resource> GetTextureByPath(const std::string& path);
@@ -96,7 +97,7 @@ private:
 	SceneMatrix* m_mapMat{ nullptr };
 	D3D12_VIEWPORT m_viewport{};
 	D3D12_RECT m_scissorRect{};
-	float m_clearColor[4]{ 1.0f, 1.0f, 1.0f, 1.0f };
+	float m_clearColor[4]{ 0.0f, 0.0f, 0.5f, 1.0f };
 	std::map<std::string, LoadLambda_t> m_loadLambdaTable;
 	std::map<std::string, ComPtr<ID3D12Resource>> m_resourceTable;
 	UINT m_bbIdx;
@@ -131,6 +132,9 @@ private:
 
 	// ブルーム用バッファ
 	std::array<ComPtr<ID3D12Resource>, 2> m_bloomBuffer;
+
+	// 画面全体ぼかし用パイプライン
+	ComPtr<ID3D12PipelineState> m_blurPipeline{ nullptr };
 };
 
 #endif // !DX12_WRAPPER_H_

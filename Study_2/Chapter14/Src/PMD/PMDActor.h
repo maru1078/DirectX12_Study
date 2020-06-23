@@ -203,8 +203,10 @@ public:
 		std::weak_ptr<Dx12Wrapper> dx12,
 		XMFLOAT3 pos = { 0.0f, 0.0f, 0.0f });
 
-	void PlayAnimation();
-	void MotionUpdate();
+	void Move(float x, float y, float z);
+
+	void PlayAnimation(); // public‚¶‚á‚È‚­‚Ä‚à‚¢‚¢‚©‚à
+	void MotionUpdate();  // public‚¶‚á‚È‚­‚Ä‚à‚¢‚¢‚©‚à
 	void Update();
 	void Draw(bool isShadow = false);
 
