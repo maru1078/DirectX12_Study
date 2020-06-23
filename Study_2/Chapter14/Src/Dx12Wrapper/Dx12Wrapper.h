@@ -116,6 +116,7 @@ private:
 	ComPtr<ID3D12RootSignature> m_peraRootSignature{ nullptr };
 	ComPtr<ID3D12PipelineState> m_peraPipeline{ nullptr };
 	ComPtr<ID3D12Resource> m_bokehParamBuffer{ nullptr };
+	ComPtr<ID3D12DescriptorHeap> m_peraCBVHeap{ nullptr };
 	ComPtr<ID3D12Resource> m_peraResource2{ nullptr }; // ƒyƒ‰2–‡–Ú
 	ComPtr<ID3D12PipelineState> m_pera2Pipeline{ nullptr };
 

@@ -89,7 +89,7 @@ float4 EffectPS(Output input) : SV_TARGET
 {
 	// 通常描画（エフェクトをかけない）
 	{
-	    return tex.Sample(smp, input.uv);
+	    //return tex.Sample(smp, input.uv);
     }
 
 	// エフェクトあり
