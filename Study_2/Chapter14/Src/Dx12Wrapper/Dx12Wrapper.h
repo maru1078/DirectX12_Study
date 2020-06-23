@@ -49,7 +49,7 @@ public:
 	void PreDrawShadow();
 	void BeginDraw();
 	void SetSceneMat();
-	bool DrawPeraPolygon(bool isToBackBuffer = true);
+	void DrawPeraPolygon();
 	void DrawPera2Polygon();
 	void DrawShrinkTextureForBlur();
 	void EndDraw();
@@ -75,6 +75,7 @@ private:
 	bool CreateBokehParamResouece();
 	bool CreateEffectBufferAndView();
 	bool CreateDepthSRVHeapAndView();
+	bool CreateBlurForDOFBuffer();
 	ComPtr<ID3D12Resource> LoadTextureFromFile(const std::string& texPath);
 
 private:
@@ -135,6 +136,10 @@ private:
 
 	// 画面全体ぼかし用パイプライン
 	ComPtr<ID3D12PipelineState> m_blurPipeline{ nullptr };
+
+	// 被写界深度用ぼかしバッファー
+	// dof : Depth Of Field
+	ComPtr<ID3D12Resource> m_dofBuffer{ nullptr };
 };
 
 #endif // !DX12_WRAPPER_H_

@@ -1,45 +1,66 @@
 #include "PeraHeader.hlsli"
 
-float4 Get5x5GaussianBlur(Texture2D<float4> tex, SamplerState smp, float2 uv, float dx, float dy)
+float4 Get5x5GaussianBlur(Texture2D<float4> tex, SamplerState smp, float2 uv, float dx, float dy, float4 rect)
 {
-	float4 ret = float4(0.0, 0.0, 0.0, 0.0);
+	float4 ret = tex.Sample(smp, uv);
+
+	float l1 = -dx, l2 = -2 * dx;
+	float r1 =  dx, r2 =  2 * dx;
+	float u1 = -dy, u2 = -2 * dy;
+	float d1 =  dy, d2 =  2 * dy;
+
+	// left?
+	l1 = max(uv.x + l1, rect.x) - uv.x;
+	l2 = max(uv.x + l2, rect.x) - uv.x;
+
+	// right?
+	r1 = min(uv.x + r1, rect.z - dx) - uv.x;
+	r2 = min(uv.x + r2, rect.z - dx) - uv.x;
+
+	// up?
+	u1 = max(uv.y + u1, rect.y) - uv.y;
+	u2 = max(uv.y + u2, rect.y) - uv.y;
+
+	// down?
+	d1 = min(uv.y + d1, rect.w - dy) - uv.y;
+	d2 = min(uv.y + d2, rect.w - dy) - uv.y;
 
 	// 最上段
-	ret += tex.Sample(smp, uv + float2(-2 * dx, 2 * dy)) * 1;
-	ret += tex.Sample(smp, uv + float2(-1 * dx, 2 * dy)) * 4;
-	ret += tex.Sample(smp, uv + float2(0 * dx, 2 * dy)) * 6;
-	ret += tex.Sample(smp, uv + float2(1 * dx, 2 * dy)) * 4;
-	ret += tex.Sample(smp, uv + float2(2 * dx, 2 * dy)) * 1;
+	ret += tex.Sample(smp, uv + float2(l2, u2)) * 1;
+	ret += tex.Sample(smp, uv + float2(l1, u2)) * 4;
+	ret += tex.Sample(smp, uv + float2( 0, u2)) * 6;
+	ret += tex.Sample(smp, uv + float2(r1, u2)) * 4;
+	ret += tex.Sample(smp, uv + float2(r2, u2)) * 1;
 
 	// 1つ上の段
-	ret += tex.Sample(smp, uv + float2(-2 * dx, 1 * dy)) * 4;
-	ret += tex.Sample(smp, uv + float2(-1 * dx, 1 * dy)) * 16;
-	ret += tex.Sample(smp, uv + float2(0 * dx, 1 * dy)) * 24;
-	ret += tex.Sample(smp, uv + float2(1 * dx, 1 * dy)) * 16;
-	ret += tex.Sample(smp, uv + float2(2 * dx, 1 * dy)) * 4;
+	ret += tex.Sample(smp, uv + float2(l2, u1)) *  4;
+	ret += tex.Sample(smp, uv + float2(l1, u1)) * 16;
+	ret += tex.Sample(smp, uv + float2( 0, u1)) * 24;
+	ret += tex.Sample(smp, uv + float2(r1, u1)) * 16;
+	ret += tex.Sample(smp, uv + float2(r2, u1)) *  4;
 
 	// 中段
-	ret += tex.Sample(smp, uv + float2(-2 * dx, 0 * dy)) * 6;
-	ret += tex.Sample(smp, uv + float2(-1 * dx, 0 * dy)) * 24;
-	ret += tex.Sample(smp, uv + float2(0 * dx, 0 * dy)) * 36;
-	ret += tex.Sample(smp, uv + float2(1 * dx, 0 * dy)) * 24;
-	ret += tex.Sample(smp, uv + float2(2 * dx, 0 * dy)) * 6;
+	ret += tex.Sample(smp, uv + float2(l2, 0)) *  6;
+	ret += tex.Sample(smp, uv + float2(l1, 0)) * 24;
+	ret += tex.Sample(smp, uv + float2( 0, 0)) * 36;
+	ret += tex.Sample(smp, uv + float2(r1, 0)) * 24;
+	ret += tex.Sample(smp, uv + float2(r2, 0)) *  6;
 
 	// 1つ下の段
-	ret += tex.Sample(smp, uv + float2(-2 * dx, -1 * dy)) * 4;
-	ret += tex.Sample(smp, uv + float2(-1 * dx, -1 * dy)) * 16;
-	ret += tex.Sample(smp, uv + float2(0 * dx, -1 * dy)) * 24;
-	ret += tex.Sample(smp, uv + float2(1 * dx, -1 * dy)) * 16;
-	ret += tex.Sample(smp, uv + float2(2 * dx, -1 * dy)) * 4;
+	ret += tex.Sample(smp, uv + float2(l2, d1)) *  4;
+	ret += tex.Sample(smp, uv + float2(l1, d1)) * 16;
+	ret += tex.Sample(smp, uv + float2( 0, d1)) * 24;
+	ret += tex.Sample(smp, uv + float2(r1, d1)) * 16;
+	ret += tex.Sample(smp, uv + float2(r2, d1)) *  4;
 
 	// 最下段
-	ret += tex.Sample(smp, uv + float2(-2 * dx, -2 * dy)) * 1;
-	ret += tex.Sample(smp, uv + float2(-1 * dx, -2 * dy)) * 4;
-	ret += tex.Sample(smp, uv + float2(0 * dx, -2 * dy)) * 6;
-	ret += tex.Sample(smp, uv + float2(1 * dx, -2 * dy)) * 4;
-	ret += tex.Sample(smp, uv + float2(2 * dx, -2 * dy)) * 1;
+	ret += tex.Sample(smp, uv + float2(l2, d2)) * 1;
+	ret += tex.Sample(smp, uv + float2(l1, d2)) * 4;
+	ret += tex.Sample(smp, uv + float2( 0, d2)) * 6;
+	ret += tex.Sample(smp, uv + float2(r1, d2)) * 4;
+	ret += tex.Sample(smp, uv + float2(r2, d2)) * 1;
 
-	return (ret / 256);
+	return float4(ret.rgb / 256, ret.a);
 }
 
 // ガウシアンぼかし縦用
@@ -66,10 +87,12 @@ float4 VerticalBokehPS(Output input) : SV_TARGET
 // ノーマルマップによるぼかし用
 float4 EffectPS(Output input) : SV_TARGET
 {
-	// 通常描画
-	return tex.Sample(smp, input.uv);
+	// 通常描画（エフェクトをかけない）
+	{
+	    return tex.Sample(smp, input.uv);
+    }
 
-
+	// エフェクトあり
 	float2 nmTex = effectTex.Sample(smp, input.uv).xy;
 	nmTex = nmTex * 2.0 - 1.0;
 
@@ -78,12 +101,18 @@ float4 EffectPS(Output input) : SV_TARGET
 	return tex.Sample(smp, input.uv + nmTex * 0.1);
 }
 
-// メインテクスチャを5x5ガウスでぼかす
-float4 BlurPS(Output input) : SV_TARGET
+//メインテクスチャを5x5ガウスでぼかす
+BlurOutput BlurPS(Output input) : SV_TARGET
 {
 	float w, h, miplevels;
-    tex.GetDimensions(0, w, h, miplevels);
-	return Get5x5GaussianBlur(tex, smp, input.uv, 1.0 / w, 1.0 / h);
+	tex.GetDimensions(0, w, h, miplevels);
+	float dx = 1.0 / w;
+	float dy = 1.0 / h;
+
+	BlurOutput ret;
+	ret.highLum = Get5x5GaussianBlur(texHighLum, smp, input.uv, dx, dy, float4(0, 0, 1, 1));
+	ret.col = Get5x5GaussianBlur(tex, smp, input.uv, dx, dy, float4(0, 0, 1, 1));
+	return ret;
 }
 
 float4 PeraPS(Output input) : SV_TARGET
@@ -123,6 +152,9 @@ float4 PeraPS(Output input) : SV_TARGET
 		}
 	}
 
+	//return tex.Sample(smp, input.uv);
+	//return texShrink.Sample(smp, input.uv);
+
 	float4 bloomAccum = float4(0.0, 0.0, 0.0, 0.0);
 	float2 uvSize = float2(1.0, 0.5);
 	float2 uvOfst = float2(0.0, 0.0);
@@ -130,16 +162,60 @@ float4 PeraPS(Output input) : SV_TARGET
 	for (int i = 0; i < 8; ++i)
 	{
 		bloomAccum += Get5x5GaussianBlur(texShrinkHighLum, smp, 
-			input.uv * uvSize + uvOfst, dx, dy);
+			input.uv * uvSize + uvOfst, dx, dy, float4(uvOfst, uvOfst + uvSize));
 		uvOfst.y += uvSize.y;
 		uvSize *= 0.5;
 	}
 
+	// 画面真ん中からの深度の差を図る
+	float depthDiff = abs(depthTex.Sample(smp, float2(0.5, 0.5))
+		- depthTex.Sample(smp, input.uv));
+
+	depthDiff = pow(depthDiff, 0.5);
+	uvSize = float2(1.0, 0.5);
+	uvOfst = float2(0.0, 0.0);
+
+	float t = depthDiff * 8;
+	float no;
+	t = modf(t, no);
+
+	float4 retColor[2];
+	retColor[0] = tex.Sample(smp, input.uv); // 通常テクスチャ
+	if (no == 0.0)
+	{
+		retColor[1] = Get5x5GaussianBlur(
+			texShrink, smp, input.uv * uvSize + uvOfst,
+			dx, dy, float4(uvOfst, uvOfst + uvSize));
+	}
+	else
+	{
+		for (int i = 1; i <= 8; ++i)
+		{
+			if (i - no < 0)
+			{
+				continue;
+			}
+
+			retColor[i - no] = Get5x5GaussianBlur(
+				texShrink, smp, input.uv * uvSize + uvOfst,
+				dx, dy, float4(uvOfst, uvOfst + uvSize));
+
+			uvOfst.y += uvSize.y;
+			uvSize *= 0.5;
+			if (i - no > 1)
+			{
+				break;
+			}
+		}
+	}
+	return lerp(retColor[0], retColor[1], t);
+
 	return tex.Sample(smp, input.uv) // 通常テクスチャ
-		+ Get5x5GaussianBlur(texHighLum, smp, input.uv, dx, dy)
+		+ Get5x5GaussianBlur(texHighLum, smp, input.uv, dx, dy, float4(0, 0, 1, 1))
 		+ saturate(bloomAccum);
 
-	return tex.Sample(smp, input.uv) + Get5x5GaussianBlur(texHighLum, smp, input.uv, dx, dy);
+	return tex.Sample(smp, input.uv) +
+		Get5x5GaussianBlur(texHighLum, smp, input.uv, dx, dy, float4(0, 0, 1, 1));
 
 	// ディファードシェーディング用の処理
 	{
