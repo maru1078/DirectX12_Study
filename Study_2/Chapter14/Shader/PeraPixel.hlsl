@@ -152,9 +152,6 @@ float4 PeraPS(Output input) : SV_TARGET
 		}
 	}
 
-	//return tex.Sample(smp, input.uv);
-	//return texShrink.Sample(smp, input.uv);
-
 	float4 bloomAccum = float4(0.0, 0.0, 0.0, 0.0);
 	float2 uvSize = float2(1.0, 0.5);
 	float2 uvOfst = float2(0.0, 0.0);
@@ -208,14 +205,13 @@ float4 PeraPS(Output input) : SV_TARGET
 			}
 		}
 	}
+	// 深度に対応したぼかし
 	return lerp(retColor[0], retColor[1], t);
 
+	// 高輝度の部分を光らせる
 	return tex.Sample(smp, input.uv) // 通常テクスチャ
 		+ Get5x5GaussianBlur(texHighLum, smp, input.uv, dx, dy, float4(0, 0, 1, 1))
 		+ saturate(bloomAccum);
-
-	return tex.Sample(smp, input.uv) +
-		Get5x5GaussianBlur(texHighLum, smp, input.uv, dx, dy, float4(0, 0, 1, 1));
 
 	// ディファードシェーディング用の処理
 	{
