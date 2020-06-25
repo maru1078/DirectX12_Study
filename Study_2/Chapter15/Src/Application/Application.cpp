@@ -83,14 +83,18 @@ void Application::Run()
 		m_pmdRenderer->PreDrawPMD();
 		m_pmdRenderer->DrawPMD();
 
-		// ペラポリへの描画
-		m_dx12->DrawPeraPolygon();
-
 		// ブルーム
 		m_dx12->DrawShrinkTextureForBlur();
 
-		// バックバッファーへの描画
-		m_dx12->DrawPera2Polygon();
+		// SSAO
+		m_dx12->DrawAmbientOcclusion();
+
+		// バックバッファーまたはペラ2への描画
+		if (m_dx12->DrawPeraPolygon(/* Draw to back buffer? -> */ true))// 処理順番を修正
+		{
+			// ポストエフェクトありの描画
+			m_dx12->DrawPera2Polygon();
+		}
 
 		m_dx12->EndDraw();
 	}

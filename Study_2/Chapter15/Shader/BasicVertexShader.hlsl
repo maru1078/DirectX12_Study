@@ -20,9 +20,8 @@ Output BasicVS(
 	}
 	output.tpos = mul(lightCamera, output.svpos);
 	output.svpos = mul(mul(proj, view), output.svpos); // シェーダーでは列優先なので順番に注意
-	//output.svpos = mul(lightCamera, output.svpos);
 	normal.w = 0; // ここ重要（平行移動成分を無効にする）
-	output.normal = mul(world, normal); // 法線にも変換を行う
+	output.normal = mul(world, mul(bm, normal)); // 法線にも変換を行う
 	output.vnormal = mul(view, output.normal);
 	output.uv = uv;
 	output.instNo = instNo;

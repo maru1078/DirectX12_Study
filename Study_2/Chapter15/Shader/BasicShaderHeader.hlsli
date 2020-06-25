@@ -32,6 +32,7 @@ cbuffer cbuff0 : register(b0)
 {
 	matrix view;        // ビュー変換行列
 	matrix proj;        // プロジェクション変換行列
+	matrix invproj;     // 逆プロジェクション
 	matrix lightCamera; // ライトビュープロジェクション
 	matrix shadow;      // 影
 	float3 eye;         // 視点

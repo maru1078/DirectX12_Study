@@ -49,7 +49,7 @@ public:
 	void PreDrawShadow();
 	void BeginDraw();
 	void SetSceneMat();
-	void DrawPeraPolygon();
+	bool DrawPeraPolygon(bool isToBackBuffer);
 	void DrawPera2Polygon();
 	void DrawShrinkTextureForBlur();
 	void EndDraw();

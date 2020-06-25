@@ -23,6 +23,7 @@ struct SceneMatrix
 {
 	XMMATRIX view;        // ビュー行列
 	XMMATRIX proj;        // プロジェクション行列
+	XMMATRIX invProj;     // 逆プロジェクション
 	XMMATRIX lightCamera; // ライトから見たビュー
 	XMMATRIX shadow;      // 影
 	XMFLOAT3 eye;         // 視点座標
@@ -49,9 +50,10 @@ public:
 	void PreDrawShadow();
 	void BeginDraw();
 	void SetSceneMat();
-	void DrawPeraPolygon();
+	bool DrawPeraPolygon(bool isToBackBuffer);
 	void DrawPera2Polygon();
 	void DrawShrinkTextureForBlur();
+	void DrawAmbientOcclusion();
 	void EndDraw();
 	void WaitForCommandQueue();
 	ComPtr<ID3D12Resource> GetTextureByPath(const std::string& path);
@@ -76,6 +78,8 @@ private:
 	bool CreateEffectBufferAndView();
 	bool CreateDepthSRVHeapAndView();
 	bool CreateBlurForDOFBuffer();
+	bool CreateAmbientOcclusionBuffer();
+	bool CreateAmbientOcclusionDescriptorHeap();
 	ComPtr<ID3D12Resource> LoadTextureFromFile(const std::string& texPath);
 
 private:
@@ -110,7 +114,7 @@ private:
 
 	std::array<ComPtr<ID3D12Resource>, 2> m_pera1Resources{ nullptr };
 	ComPtr<ID3D12DescriptorHeap> m_peraRTVHeap{ nullptr }; // レンダーターゲット用
-	ComPtr<ID3D12DescriptorHeap> m_peraRegisterHeap{ nullptr }; // テクスチャ用
+	ComPtr<ID3D12DescriptorHeap> m_peraSRVHeap{ nullptr }; // テクスチャ用
 	ComPtr<ID3D12Resource> m_peraVB{ nullptr };
 	D3D12_VERTEX_BUFFER_VIEW m_peraVBV;
 	ComPtr<ID3D12RootSignature> m_peraRootSignature{ nullptr };
@@ -141,6 +145,11 @@ private:
 	// 被写界深度用ぼかしバッファー
 	// dof : Depth Of Field
 	ComPtr<ID3D12Resource> m_dofBuffer{ nullptr };
+
+	ComPtr<ID3D12Resource> m_aoBuffer{ nullptr };
+	ComPtr<ID3D12PipelineState> m_aoPipeline{ nullptr };
+	ComPtr<ID3D12DescriptorHeap> m_aoRTVHD{ nullptr };
+	ComPtr<ID3D12DescriptorHeap> m_aoSRVHD{ nullptr };
 };
 
 #endif // !DX12_WRAPPER_H_

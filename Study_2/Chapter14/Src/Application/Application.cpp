@@ -83,14 +83,15 @@ void Application::Run()
 		m_pmdRenderer->PreDrawPMD();
 		m_pmdRenderer->DrawPMD();
 
-		// ペラポリへの描画
-		m_dx12->DrawPeraPolygon();
-
 		// ブルーム
 		m_dx12->DrawShrinkTextureForBlur();
 
-		// バックバッファーへの描画
-		m_dx12->DrawPera2Polygon();
+		// ペラポリへの描画
+		if (m_dx12->DrawPeraPolygon(true))
+		{
+			// バックバッファーへの描画
+			m_dx12->DrawPera2Polygon();
+		}
 
 		m_dx12->EndDraw();
 	}

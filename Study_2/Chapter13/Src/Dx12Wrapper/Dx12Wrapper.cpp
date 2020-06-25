@@ -200,7 +200,7 @@ void Dx12Wrapper::DrawPeraPolygon(bool isToBackBuffer)
 
 	// ペラ2枚目に書き込み
 	auto rtvH = m_peraRTVHeap->GetCPUDescriptorHandleForHeapStart();
-	rtvH.ptr += m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+	rtvH.ptr += m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
 
 	if (isToBackBuffer)
 	{
@@ -859,7 +859,7 @@ bool Dx12Wrapper::CreatePeraResource()
 	auto handle = m_peraRTVHeap->GetCPUDescriptorHandleForHeapStart();
 	m_device->CreateRenderTargetView(m_peraResource.Get(), &rtvDesc, handle);
 
-	handle.ptr += m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+	handle.ptr += m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
 	m_device->CreateRenderTargetView(m_peraResource2.Get(), &rtvDesc, handle);
 
 	// SRV、CBV用ヒープを作る
