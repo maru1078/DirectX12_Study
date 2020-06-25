@@ -63,6 +63,12 @@ float4 Get5x5GaussianBlur(Texture2D<float4> tex, SamplerState smp, float2 uv, fl
 	return float4(ret.rgb / 256, ret.a);
 }
 
+// 現在のuv値をもとに乱数を返す
+float random(float2 uv)
+{
+	return frac(sin(dot(uv, float2(12.9898, 78.233))) * 43758.5453);
+}
+
 // ガウシアンぼかし縦用
 float4 VerticalBokehPS(Output input) : SV_TARGET
 {
@@ -110,6 +116,60 @@ BlurOutput BlurPS(Output input) : SV_TARGET
 	return ret;
 }
 
+// SSAO（乗算用の明度のみ情報を返せればよい）
+float SsaoPs(Output input) : SV_TARGET
+{
+	float dp = depthTex.Sample(smp, input.uv); // 現在のuvの深度
+
+    float w, h, miplevels;
+	depthTex.GetDimensions(0, w, h, miplevels);
+
+	float dx = 1.0 / w;
+	float dy = 1.0 / h;
+
+	// SSAO
+	// 元の座標を復元する
+	float4 repos = mul(invproj, float4(input.uv * float2(2.0, -2.0) + float2(-1.0, 1.0), dp, 1));
+	repos.xyz /= repos.w;
+
+	float div = 0.0;
+	float ao = 0.0;
+	float3 norm = normalize((texNormal.Sample(smp, input.uv).xyz * 2) - 1);
+	const int trycnt = 256;
+	const float radius = 0.5;
+
+	if (dp < 1.0)
+	{
+		for (int i = 0; i < trycnt; ++i)
+		{
+			float rnd1 = random(float2(i * dx, i * dy)) * 2 - 1;
+			float rnd2 = random(float2(rnd1, i * dy)) * 2 - 1;
+			float rnd3 = random(float2(rnd2, rnd1)) * 2 - 1;
+			float3 omega = normalize(float3(rnd1, rnd2, rnd3));
+
+			// 乱数の結果法線の反対側を向いていたら反転する
+			float dt = dot(norm, omega);
+			float sgn = sign(dt);
+			omega *= sign(dt);
+
+			// 結果の座標を再び射影変換する
+			float4 rpos = mul(proj, float4(repos.xyz + omega * radius, 1));
+			rpos.xyz /= rpos.w;
+			dt *= sgn; // 正の値にしてcosθを得る
+			div += dt; // 射影を考えない結果を加算する
+
+			// 計算結果が現在の場所の深度より奥に入っているなら
+			// 遮蔽されているので加算
+			ao += step(depthTex.Sample(smp, (rpos.xy + float2(1, -1))
+				* float2(0.5, -0.5)), rpos.z) * dt;
+		}
+
+		ao /= div;
+	}
+
+	return 1.0 - ao;
+}
+
 float4 PeraPS(Output input) : SV_TARGET
 {
 	float4 col = tex.Sample(smp, input.uv);
@@ -143,9 +203,14 @@ float4 PeraPS(Output input) : SV_TARGET
 		}
 		else if (input.uv.y < 1.0)
 		{
-			return texShrinkHighLum.Sample(smp, (input.uv - float2(0.0, 0.8)) * 5);
+			float s = SSAOTex.Sample(smp, (input.uv - float2(0.0, 0.8)) * 5);
+			return float4(s, s, s, 1.0);
 		}
 	}
+
+	// SSAOあり
+	float s = SSAOTex.Sample(smp, input.uv);
+	return float4(col.rgb * s, col.a);
 
 	float4 bloomAccum = float4(0.0, 0.0, 0.0, 0.0);
 	float2 uvSize = float2(1.0, 0.5);

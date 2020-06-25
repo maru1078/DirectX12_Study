@@ -86,10 +86,13 @@ void Application::Run()
 		// ブルーム
 		m_dx12->DrawShrinkTextureForBlur();
 
-		// ペラポリへの描画
-		if (m_dx12->DrawPeraPolygon(true))
+		// SSAO
+		m_dx12->DrawAmbientOcclusion();
+
+		// バックバッファーまたはペラ2への描画
+		if (m_dx12->DrawPeraPolygon(/* Draw to back buffer? -> */ true))// 処理順番を修正
 		{
-			// バックバッファーへの描画
+			// ポストエフェクトありの描画
 			m_dx12->DrawPera2Polygon();
 		}
 
